@@ -1,7 +1,7 @@
 // lib/todo-generator.ts
 // 根据领星数据自动生成待办事项
 
-import { getSupabaseAdminClient } from './supabase'
+import { getSupabaseAdminClient } from './supabase-server'
 import type {
   InboundOrder, OutboundOrder,
   InventoryItem, ReturnOrder, WorkOrder

@@ -2,7 +2,7 @@
 // 绑定领星账号 API 端点
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseServerClient } from '@/lib/supabase'
+import { getSupabaseServerClient } from '@/lib/supabase-server'
 import { verifyAndBindCredentials } from '@/lib/lingxing'
 
 export async function POST(req: NextRequest) {

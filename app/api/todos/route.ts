@@ -2,7 +2,7 @@
 // 待办事项 CRUD API
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseServerClient } from '@/lib/supabase'
+import { getSupabaseServerClient } from '@/lib/supabase-server'
 
 // ── 获取待办列表 ──────────────────────────────────────────────
 export async function GET(req: NextRequest) {

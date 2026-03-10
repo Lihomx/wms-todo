@@ -65,7 +65,7 @@ function TodosContent() {
   }
 
   const toggleCheck = async (todoId: string, checkId: string, isDone: boolean) => {
-    const supabase = (await import('@/lib/supabase')).getSupabaseBrowserClient()
+    const supabase = (await import('@/lib/supabase-browser')).getSupabaseBrowserClient()
     await supabase.from('checklist_items').update({ is_done: isDone }).eq('id', checkId)
     // update local state
     setSelected(s => s && s.id === todoId ? {

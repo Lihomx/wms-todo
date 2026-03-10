@@ -1,7 +1,7 @@
 'use client'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { getSupabaseBrowserClient } from '@/lib/supabase'
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
 
 const NAV = [
   { group: '工作台', items: [

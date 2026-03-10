@@ -3,7 +3,7 @@
 // API文档：https://apidoc-oms.xlwms.com
 
 import CryptoJS from 'crypto-js'
-import { getSupabaseAdminClient } from './supabase'
+import { getSupabaseAdminClient } from './supabase-server'
 
 const LINGXING_AUTH_URL = process.env.LINGXING_AUTH_URL || 'https://openapi.lingxing.com/erp/sc/auth/token'
 const LINGXING_API_BASE = process.env.LINGXING_API_BASE_URL || 'https://openapi.lingxing.com'

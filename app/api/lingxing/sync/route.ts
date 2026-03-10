@@ -2,7 +2,7 @@
 // 手动触发同步 API 端点
 
 import { NextResponse } from 'next/server'
-import { getSupabaseServerClient, getSupabaseAdminClient } from '@/lib/supabase'
+import { getSupabaseServerClient, getSupabaseAdminClient } from '@/lib/supabase-server'
 import {
   getValidToken,
   fetchPendingInbound,
