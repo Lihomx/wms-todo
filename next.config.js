@@ -1,8 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ['crypto-js'],
-  },
+  serverExternalPackages: ['crypto-js'],
   async headers() {
     return [
       {
