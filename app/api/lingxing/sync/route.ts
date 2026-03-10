@@ -1,101 +1,49 @@
-// app/api/lingxing/sync/route.ts
-// 手动触发同步 API 端点
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server'
-import { getSupabaseServerClient, getSupabaseAdminClient } from '@/lib/supabase-server'
-import {
-  getValidToken,
-  fetchPendingInbound,
-  fetchReceivedPendingShelve,
-  fetchPendingDropshipping,
-  fetchTodayOutbound,
-  fetchInventory,
-  fetchReturnOrders,
-  fetchWorkOrders,
-} from '@/lib/lingxing'
-import { generateTodosFromLingxing } from '@/lib/todo-generator'
+import { getSupabaseAdminClient } from '@/lib/supabase-server'
+import { getValidToken, fetchPendingInbound, fetchReceivedInbound, fetchPendingOutbound, fetchTodayOutbound, fetchInventory, fetchReturns, fetchWorkOrders } from '@/lib/lingxing'
+import { generateTodos } from '@/lib/todo-generator'
+
+const DEFAULT_TENANT = process.env.DEFAULT_TENANT_ID || 'a0000000-0000-0000-0000-000000000001'
 
 export async function POST() {
+  const start = Date.now()
   try {
-    const supabase = getSupabaseServerClient()
-    const adminSupabase = getSupabaseAdminClient()
+    const token = await getValidToken(DEFAULT_TENANT)
 
-    // 验证登录
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: '请先登录' }, { status: 401 })
-
-    const { data: userInfo } = await supabase
-      .from('users').select('tenant_id').eq('id', user.id).single()
-
-    const tenantId = userInfo?.tenant_id
-    if (!tenantId) return NextResponse.json({ error: '未找到账户信息' }, { status: 400 })
-
-    // 检查绑定状态
-    const { data: cred } = await adminSupabase
-      .from('lingxing_credentials')
-      .select('*')
-      .eq('tenant_id', tenantId)
-      .single()
-
-    if (!cred || cred.auth_status !== 1) {
-      return NextResponse.json({ error: '请先绑定领星账号' }, { status: 400 })
-    }
-
-    const startTime = Date.now()
-
-    // 获取有效 Token
-    const token = await getValidToken(tenantId)
-
-    // 并发拉取所有数据
-    const [
-      pendingInbound,
-      receivedInbound,
-      pendingOutbound,
-      todayOutbound,
-      inventory,
-      returns,
-      workOrders,
-    ] = await Promise.allSettled([
+    const results = await Promise.allSettled([
       fetchPendingInbound(token),
-      fetchReceivedPendingShelve(token),
-      fetchPendingDropshipping(token),
+      fetchReceivedInbound(token),
+      fetchPendingOutbound(token),
       fetchTodayOutbound(token),
       fetchInventory(token),
-      fetchReturnOrders(token),
+      fetchReturns(token),
       fetchWorkOrders(token),
     ])
 
-    const getData = <T>(r: PromiseSettledResult<T[]>): T[] =>
-      r.status === 'fulfilled' ? r.value : []
+    const get = (r: any) => r.status === 'fulfilled' ? r.value : []
+    const [pi, ri, po, to, inv, ret, wo] = results
 
-    // 生成待办
-    const result = await generateTodosFromLingxing(tenantId, {
-      pendingInbound:  getData(pendingInbound),
-      receivedInbound: getData(receivedInbound),
-      pendingOutbound: getData(pendingOutbound),
-      todayOutbound:   getData(todayOutbound),
-      inventory:       getData(inventory),
-      returns:         getData(returns),
-      workOrders:      getData(workOrders),
+    const result = await generateTodos(DEFAULT_TENANT, {
+      pendingInbound:  get(pi),
+      receivedInbound: get(ri),
+      pendingOutbound: get(po),
+      todayOutbound:   get(to),
+      inventory:       get(inv),
+      returns:         get(ret),
+      workOrders:      get(wo),
     })
 
-    // 更新最后同步时间
-    await adminSupabase
-      .from('lingxing_credentials')
-      .update({ last_sync_at: new Date().toISOString() })
-      .eq('tenant_id', tenantId)
+    await getSupabaseAdminClient().from('lingxing_credentials').update({ last_sync_at: new Date().toISOString() }).eq('tenant_id', DEFAULT_TENANT)
 
     return NextResponse.json({
       success:      true,
-      duration:     `${Date.now() - startTime}ms`,
+      duration:     `${Date.now() - start}ms`,
       todosCreated: result.created,
       todosUpdated: result.updated,
-      skipped:      result.skipped,
-      message:      `同步完成：新建 ${result.created} 个待办，更新 ${result.updated} 个`,
+      message:      `同步完成：新建 ${result.created} 个，更新 ${result.updated} 个`,
     })
-
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : '同步失败'
-    return NextResponse.json({ error: message }, { status: 500 })
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message ?? '同步失败' }, { status: 500 })
   }
 }

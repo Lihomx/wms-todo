@@ -1,23 +1,13 @@
 {
   "name": "wms-sync-worker",
   "version": "1.0.0",
-  "description": "海外仓WMS - 领星数据定时同步服务",
   "main": "index.js",
-  "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
-  },
+  "scripts": { "start": "node index.js" },
   "dependencies": {
     "@supabase/supabase-js": "^2.43.0",
     "crypto-js": "^4.2.0",
     "node-cron": "^3.0.3",
-    "dotenv": "^16.4.5",
-    "node-fetch": "^3.3.2"
+    "dotenv": "^16.4.5"
   },
-  "devDependencies": {
-    "nodemon": "^3.1.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  }
+  "engines": { "node": ">=18" }
 }

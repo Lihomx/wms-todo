@@ -1,13 +1,11 @@
 {
   "name": "overseas-wms-todo",
   "version": "1.0.0",
-  "description": "海外仓WMS待办管理系统",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "db:migrate": "supabase db push"
+    "lint": "next lint"
   },
   "dependencies": {
     "next": "15.3.1",
@@ -16,14 +14,7 @@
     "@supabase/supabase-js": "^2.43.0",
     "@supabase/ssr": "^0.3.0",
     "crypto-js": "^4.2.0",
-    "axios": "^1.6.8",
-    "date-fns": "^3.6.0",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.383.0",
-    "recharts": "^2.12.0",
-    "zustand": "^4.5.2",
-    "react-hot-toast": "^2.4.1",
-    "@tanstack/react-query": "^5.35.1"
+    "lucide-react": "^0.383.0"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -31,9 +22,6 @@
     "@types/react-dom": "^18",
     "@types/crypto-js": "^4.2.2",
     "typescript": "^5",
-    "tailwindcss": "^3.4.1",
-    "autoprefixer": "^10.4.19",
-    "postcss": "^8.4.38",
     "eslint": "^8",
     "eslint-config-next": "15.3.1"
   }

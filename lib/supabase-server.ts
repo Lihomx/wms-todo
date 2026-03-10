@@ -1,10 +1,7 @@
-// lib/supabase-server.ts
-// 服务端 Supabase 客户端（API Route / Server Component 专用）
 import { createClient } from '@supabase/supabase-js'
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-// 服务端客户端（读取 cookie 中的 session）
 export function getSupabaseServerClient() {
   const cookieStore = cookies()
   return createServerClient(
@@ -12,21 +9,16 @@ export function getSupabaseServerClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          try { cookieStore.set({ name, value, ...options }) } catch {}
-        },
-        remove(name: string, options: CookieOptions) {
-          try { cookieStore.set({ name, value: '', ...options }) } catch {}
-        },
+        get(name: string) { return cookieStore.get(name)?.value },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        set(name: string, value: string, options: any) { try { cookieStore.set({ name, value, ...options }) } catch {} },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        remove(name: string, options: any) { try { cookieStore.set({ name, value: '', ...options }) } catch {} },
       },
     }
   )
 }
 
-// 管理员客户端（绕过 RLS，用于同步任务和服务端操作）
 export function getSupabaseAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
