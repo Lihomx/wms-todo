@@ -22,24 +22,38 @@ export interface OmsCredential {
 }
 
 // ── Sign generation ───────────────────────────────────────────
-// OMS 签名算法：MD5(appKey + reqTime + appSecret).toUpperCase()
-function generateSign(appKey: string, appSecret: string, reqTime: string): string {
-  const { createHash } = require('crypto') as typeof import('crypto')
-  return createHash('md5').update(appKey + reqTime + appSecret).digest('hex').toUpperCase()
+/**
+ * 领星OMS签名算法（已验证）：
+ * 1. data 字段按 key 字典升序排序
+ * 2. 拼接字符串 = appKey + JSON.stringify(sortedData) + reqTime
+ * 3. authCode = HMAC-SHA256(appSecret, 拼接字符串)，hex小写
+ */
+function sortObjectKeys(obj: Record<string, any>): Record<string, any> {
+  return Object.fromEntries(Object.entries(obj).sort(([a], [b]) => a.localeCompare(b)))
+}
+
+function generateAuthCode(appKey: string, appSecret: string, reqTime: string, data: Record<string, any>): string {
+  const { createHmac } = require('crypto') as typeof import('crypto')
+  const sortedData  = sortObjectKeys(data)
+  const strToSign   = appKey + JSON.stringify(sortedData) + reqTime
+  return createHmac('sha256', appSecret).update(strToSign).digest('hex')
 }
 
 // ── Core request ─────────────────────────────────────────────
-// 请求体结构: { appKey, reqTime, sign, data: { ...业务参数 } }
+/**
+ * 最终请求体结构:
+ * { appKey, data: { ...业务参数 }, reqTime, authCode }
+ */
 async function omsRequest(
   appKey: string,
   appSecret: string,
   endpoint: string,
   data: Record<string, any> = {}
 ): Promise<any> {
-  const reqTime = String(Math.floor(Date.now() / 1000)) // 10位秒级时间戳
-  const sign    = generateSign(appKey, appSecret, reqTime)
+  const reqTime  = String(Math.floor(Date.now() / 1000))
+  const authCode = generateAuthCode(appKey, appSecret, reqTime, data)
 
-  const body = { appKey, reqTime, sign, data }
+  const body = { appKey, data, reqTime, authCode }
 
   const res = await fetch(`${API_BASE}${endpoint}`, {
     method:  'POST',
