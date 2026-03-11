@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     })
 
     // Step 3: 请求体
-    const requestBody = { appKey, data: testData, reqTime, authcode }
+    const requestBody = { appKey, ...testData, reqTime, authcode }
     steps.push({
       step: '3. 请求体结构',
       status: 'info',
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     try {
       const res  = await fetch(`${API_BASE}/v1/inboundOrder/pageList`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appKey, data: data2, reqTime: reqTime2, authcode: authcode2 }),
+        body: JSON.stringify({ appKey, ...data2, reqTime: reqTime2, authcode: authcode2 }),
       })
       const raw  = await res.text()
       const json = JSON.parse(raw)

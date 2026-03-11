@@ -48,8 +48,9 @@ function generateAuthcode(appKey: string, appSecret: string, reqTime: string, da
 
 // ── Core request ─────────────────────────────────────────────
 /**
- * 最终请求体结构:
- * { appKey, data: { ...业务参数 }, reqTime, authCode }
+ * 最终请求体结构（已验证）:
+ * { appKey, ...业务参数展开到顶层, reqTime, authcode }
+ * 注意：data 字段直接展开，不嵌套
  */
 async function omsRequest(
   appKey: string,
@@ -58,9 +59,10 @@ async function omsRequest(
   data: Record<string, any> = {}
 ): Promise<any> {
   const reqTime  = String(Math.floor(Date.now() / 1000))
-  const authCode = generateAuthcode(appKey, appSecret, reqTime, data)
+  const authcode = generateAuthcode(appKey, appSecret, reqTime, data)
 
-  const body = { appKey, data, reqTime, authcode: authCode }
+  // data 字段展开到顶层，不嵌套在 data:{} 里
+  const body = { appKey, ...data, reqTime, authcode }
 
   const res = await fetch(`${API_BASE}${endpoint}`, {
     method:  'POST',
