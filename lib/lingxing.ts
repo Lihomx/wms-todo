@@ -110,15 +110,38 @@ export async function verifyAndBind(
   appKey: string,
   appSecret: string
 ): Promise<{ success: boolean; message: string; warehouseCount?: number }> {
-  const supabase = getSupabaseAdminClient()
 
+  // ── Step 1: 检查 ENCRYPTION_SECRET ───────────────────────────
+  const encSecret = process.env.ENCRYPTION_SECRET
+  if (!encSecret || encSecret.length < 16) {
+    return { success: false, message: '❌ 服务器配置错误：Vercel 环境变量缺少 ENCRYPTION_SECRET（需要32位字符串）' }
+  }
+
+  // ── Step 2: 检查 Supabase 连接 ────────────────────────────────
+  const supabase = getSupabaseAdminClient()
+  const { error: dbErr } = await supabase.from('tenants').select('id').limit(1)
+  if (dbErr) {
+    return { success: false, message: `❌ 数据库连接失败：${dbErr.message} — 请检查 Vercel 的 SUPABASE_SERVICE_ROLE_KEY / NEXT_PUBLIC_SUPABASE_URL` }
+  }
+
+  // ── Step 3: 检查 tenants 表里是否有默认租户 ──────────────────
+  const { data: tenant } = await supabase.from('tenants').select('id').eq('id', tenantId).maybeSingle()
+  if (!tenant) {
+    // 自动插入默认租户
+    const { error: insertErr } = await supabase.from('tenants').insert({ id: tenantId, name: '默认仓库' })
+    if (insertErr) {
+      return { success: false, message: `❌ 默认租户不存在且创建失败：${insertErr.message} — 请先在 Supabase 执行初始化 SQL` }
+    }
+  }
+
+  // ── Step 4: 调用 OMS API 验证 AppKey/AppSecret ────────────────
+  let omsError1 = ''
   try {
-    // Test with warehouse list endpoint
     const data = await omsRequest(appKey, appSecret, '/v1/warehouse/options', {})
     const warehouses: any[] = Array.isArray(data) ? data : (data?.list ?? data?.records ?? [])
     const warehouseIds = warehouses.map((w: any) => String(w.id ?? w.warehouseId ?? w.warehouse_id))
 
-    await supabase
+    const { error: upsertErr } = await supabase
       .from('lingxing_credentials')
       .upsert({
         tenant_id:     tenantId,
@@ -129,28 +152,41 @@ export async function verifyAndBind(
         sync_enabled:  true,
       }, { onConflict: 'tenant_id' })
 
-    return {
-      success:        true,
-      message:        `绑定成功！检测到 ${warehouses.length} 个仓库`,
-      warehouseCount: warehouses.length,
+    if (upsertErr) {
+      return { success: false, message: `❌ 凭证保存失败：${upsertErr.message}` }
     }
+
+    return { success: true, message: `✅ 绑定成功！检测到 ${warehouses.length} 个仓库`, warehouseCount: warehouses.length }
+
   } catch (err) {
-    const msg = err instanceof Error ? err.message : '未知错误'
-    // If warehouse endpoint fails but credentials might still be valid, try inbound list
-    try {
-      await omsRequest(appKey, appSecret, '/v1/inboundOrder/pageList', { pageNo: 1, pageSize: 1 })
-      await supabase
-        .from('lingxing_credentials')
-        .upsert({
-          tenant_id:    tenantId,
-          app_key:      encrypt(appKey),
-          app_secret:   encrypt(appSecret),
-          auth_status:  1,
-          sync_enabled: true,
-        }, { onConflict: 'tenant_id' })
-      return { success: true, message: '绑定成功！（仓库列表获取受限，但API验证通过）', warehouseCount: 0 }
-    } catch {
-      return { success: false, message: `绑定失败: ${msg}（请确认 AppKey/AppSecret 正确）` }
+    omsError1 = err instanceof Error ? err.message : String(err)
+  }
+
+  // ── Step 5: 备用接口再试一次 ──────────────────────────────────
+  try {
+    await omsRequest(appKey, appSecret, '/v1/inboundOrder/pageList', { pageNo: 1, pageSize: 1 })
+
+    const { error: upsertErr } = await supabase
+      .from('lingxing_credentials')
+      .upsert({
+        tenant_id:    tenantId,
+        app_key:      encrypt(appKey),
+        app_secret:   encrypt(appSecret),
+        auth_status:  1,
+        sync_enabled: true,
+      }, { onConflict: 'tenant_id' })
+
+    if (upsertErr) {
+      return { success: false, message: `❌ 凭证保存失败：${upsertErr.message}` }
+    }
+
+    return { success: true, message: '✅ 绑定成功！（仓库接口受限，但 API 验证通过）', warehouseCount: 0 }
+
+  } catch (err) {
+    const omsError2 = err instanceof Error ? err.message : String(err)
+    return {
+      success: false,
+      message: `❌ OMS API 验证失败\n仓库接口：${omsError1}\n入库接口：${omsError2}`,
     }
   }
 }

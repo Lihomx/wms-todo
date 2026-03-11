@@ -43,7 +43,7 @@ export default function SettingsPage() {
     try {
       const r = await fetch('/api/lingxing/bind', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId: process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || 'a0000000-0000-0000-0000-000000000001', appKey: appKey.trim(), appSecret: appSecret.trim() }) })
       const d = await r.json()
-      if (!r.ok) { setError(d.error || '绑定失败') }
+      if (!r.ok || !d.success) { setError(d.error || d.message || `绑定失败 (HTTP ${r.status})`) }
       else { setSuccess(d.message); setAppKey(''); setAppSecret(''); await loadStatus() }
     } catch { setError('网络错误，请重试') }
     finally { setLoading(false) }
