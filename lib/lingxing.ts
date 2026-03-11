@@ -14,85 +14,46 @@ const API_BASE = 'https://api.xlwms.com/openapi'
 // ── Credential row ────────────────────────────────────────────
 export interface OmsCredential {
   tenant_id: string
-  app_key: string       // encrypted
-  app_secret: string    // encrypted
+  app_key: string
+  app_secret: string
   auth_status: number
   last_sync_at?: string
   warehouse_ids?: string[]
 }
 
-// ── Token cache (in-memory, per process) ─────────────────────
-const tokenCache: Record<string, { authcode: string; expiresAt: number }> = {}
-
-// 领星OMS token 获取接口（尝试多个可能的路径）
-async function getAuthcode(appKey: string, appSecret: string): Promise<string> {
-  const cached = tokenCache[appKey]
-  if (cached && cached.expiresAt > Date.now() + 60_000) return cached.authcode
-
-  const candidates = [
-    `${API_BASE}/v1/auth/token`,
-    `${API_BASE}/v1/auth/getToken`,
-    `${API_BASE}/auth/token`,
-    `${API_BASE}/v1/open/auth/token`,
-  ]
-
-  let lastError = ''
-  for (const url of candidates) {
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appKey, appSecret }),
-      })
-      const json = await res.json()
-      const code = json.code ?? json.status
-      const token = json.data?.authcode ?? json.data?.token ?? json.data?.accessToken ?? json.data?.access_token
-      if ((code === 200 || code === 0 || code === '200' || code === '0') && token) {
-        const ttl = (json.data?.expiresIn ?? json.data?.expire ?? json.data?.expires_in ?? 7200) * 1000
-        tokenCache[appKey] = { authcode: token, expiresAt: Date.now() + ttl }
-        return token
-      }
-      lastError = `[${url}] code=${code} msg=${json.message ?? json.msg ?? JSON.stringify(json).slice(0, 100)}`
-    } catch (e) {
-      lastError = `[${url}] ${e instanceof Error ? e.message : String(e)}`
-    }
-  }
-  throw new Error(`获取 OMS Token 失败。尝试了以下接口均无效：${lastError}`)
+// ── Sign generation ───────────────────────────────────────────
+// OMS 签名算法：MD5(appKey + reqTime + appSecret).toUpperCase()
+function generateSign(appKey: string, appSecret: string, reqTime: string): string {
+  const { createHash } = require('crypto') as typeof import('crypto')
+  return createHash('md5').update(appKey + reqTime + appSecret).digest('hex').toUpperCase()
 }
 
 // ── Core request ─────────────────────────────────────────────
+// 请求体结构: { appKey, reqTime, sign, data: { ...业务参数 } }
 async function omsRequest(
   appKey: string,
   appSecret: string,
   endpoint: string,
-  body: Record<string, any> = {}
+  data: Record<string, any> = {}
 ): Promise<any> {
-  const authcode = await getAuthcode(appKey, appSecret)
+  const reqTime = String(Math.floor(Date.now() / 1000)) // 10位秒级时间戳
+  const sign    = generateSign(appKey, appSecret, reqTime)
 
-  const doRequest = async (code: string) => fetch(`${API_BASE}${endpoint}`, {
-    method: 'POST',
+  const body = { appKey, reqTime, sign, data }
+
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...body, authcode: code }),
+    body:    JSON.stringify(body),
   })
 
-  let res = await doRequest(authcode)
   if (!res.ok) throw new Error(`OMS HTTP ${res.status}: ${endpoint}`)
 
-  let json = await res.json()
-  let responseCode = json.code ?? json.status
+  const json = await res.json()
+  const code = json.code ?? json.status
 
-  // authcode 过期 → 清缓存重试一次
-  if (responseCode === 11001 || responseCode === '11001') {
-    delete tokenCache[appKey]
-    const fresh = await getAuthcode(appKey, appSecret)
-    res = await doRequest(fresh)
-    if (!res.ok) throw new Error(`OMS HTTP ${res.status}: ${endpoint}`)
-    json = await res.json()
-    responseCode = json.code ?? json.status
-  }
-
-  if (responseCode !== 200 && responseCode !== 0 && responseCode !== '200' && responseCode !== '0') {
-    throw new Error(`OMS API错误 [${endpoint}]: code=${responseCode} msg=${json.message ?? json.msg ?? '未知'}`)
+  if (code !== 200 && code !== 0 && code !== '200' && code !== '0') {
+    throw new Error(`OMS API错误 [${endpoint}]: code=${code} msg=${json.message ?? json.msg ?? '未知'}`)
   }
 
   return json.data ?? json
@@ -106,26 +67,28 @@ async function fetchAllPages(
   params: Record<string, any> = {}
 ): Promise<any[]> {
   const all: any[] = []
-  let pageNo = 1
-  const pageSize = 100
+  let page = 1
+  const pageSize = 50 // 保守值，避免超限
 
   while (true) {
     const data = await omsRequest(appKey, appSecret, endpoint, {
       ...params,
-      pageNo,
+      page,
       pageSize,
     })
 
-    // OMS may return array directly or { list: [], total: N }
+    // OMS 返回结构: { list: [], total: N } 或直接数组
     const items: any[] = Array.isArray(data)
       ? data
-      : (data?.list ?? data?.records ?? data?.data ?? [])
+      : (data?.list ?? data?.records ?? data?.rows ?? [])
 
     all.push(...items)
 
+    const total = data?.total ?? data?.totalCount ?? null
     if (items.length < pageSize) break
-    pageNo++
-    await new Promise(r => setTimeout(r, 200)) // rate limit
+    if (total !== null && all.length >= Number(total)) break
+    page++
+    await new Promise(r => setTimeout(r, 300))
   }
 
   return all
