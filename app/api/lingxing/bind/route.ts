@@ -4,8 +4,10 @@ import { getSupabaseAdminClient } from '@/lib/supabase-server'
 
 export async function POST(req: NextRequest) {
   try {
-    const { tenantId, appKey, appSecret } = await req.json()
-    if (!tenantId || !appKey || !appSecret) {
+    const body = await req.json()
+    const tenantId = body.tenantId || process.env.DEFAULT_TENANT_ID || 'a0000000-0000-0000-0000-000000000001'
+    const { appKey, appSecret } = body
+    if (!appKey || !appSecret) {
       return NextResponse.json({ error: '缺少必要参数' }, { status: 400 })
     }
     const result = await verifyAndBind(tenantId, appKey, appSecret)

@@ -41,7 +41,7 @@ export default function SettingsPage() {
     if (!appKey.trim() || !appSecret.trim()) { setError('AppKey 和 AppSecret 不能为空'); return }
     setLoading(true)
     try {
-      const r = await fetch('/api/lingxing/bind', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appKey: appKey.trim(), appSecret: appSecret.trim() }) })
+      const r = await fetch('/api/lingxing/bind', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId: process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || 'a0000000-0000-0000-0000-000000000001', appKey: appKey.trim(), appSecret: appSecret.trim() }) })
       const d = await r.json()
       if (!r.ok) { setError(d.error || '绑定失败') }
       else { setSuccess(d.message); setAppKey(''); setAppSecret(''); await loadStatus() }
@@ -51,15 +51,19 @@ export default function SettingsPage() {
 
   const handleSync = async () => {
     setSyncing(true); setSyncRes(null)
-    try { const r = await fetch('/api/lingxing/sync', { method: 'POST' }); const d = await r.json(); setSyncRes(d); if (d.success) await loadStatus() }
+    const DEFAULT_TENANT = process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || 'a0000000-0000-0000-0000-000000000001'
+    try { const r = await fetch('/api/lingxing/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId: DEFAULT_TENANT }) }); const d = await r.json(); setSyncRes(d); if (d.success) await loadStatus() }
     catch { setSyncRes({ success: false, message: '同步请求失败' }) }
     finally { setSyncing(false) }
   }
 
   const handleUnbind = async () => {
     if (!confirm('确认解绑领星账号？')) return
-    try { const r = await fetch('/api/lingxing/bind', { method: 'DELETE' }); const d = await r.json(); if (d.success) { setSuccess('已成功解绑'); await loadStatus() } else setError(d.error) }
-    catch { setError('解绑失败') }
+    try {
+      const r = await fetch('/api/lingxing/bind', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId: process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || 'a0000000-0000-0000-0000-000000000001' }) })
+      const d = await r.json()
+      if (d.success) { setSuccess('已成功解绑'); await loadStatus() } else setError(d.error)
+    } catch { setError('解绑失败') }
   }
 
   const code    = status?.authStatus ?? 0
