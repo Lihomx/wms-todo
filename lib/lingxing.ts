@@ -53,7 +53,7 @@ async function omsRequest(
   const reqTime  = String(Math.floor(Date.now() / 1000))
   const authCode = generateAuthCode(appKey, appSecret, reqTime, data)
 
-  const body = { appKey, data, reqTime, authCode }
+  const body = { appKey, data, reqTime, authcode: authCode }
 
   const res = await fetch(`${API_BASE}${endpoint}`, {
     method:  'POST',
