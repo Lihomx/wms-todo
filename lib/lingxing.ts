@@ -24,18 +24,25 @@ export interface OmsCredential {
 // ── Sign generation ───────────────────────────────────────────
 /**
  * 领星OMS签名算法（已验证）：
- * 1. data 字段按 key 字典升序排序
- * 2. 拼接字符串 = appKey + JSON.stringify(sortedData) + reqTime
- * 3. authCode = HMAC-SHA256(appSecret, 拼接字符串)，hex小写
+ * 1. data 的 key 全部转小写后字典升序排序
+ * 2. 拼接字符串 = appKey + 排序后各value依次拼接（不是JSON） + reqTime
+ * 3. authcode = HMAC-SHA256(appSecret, 拼接字符串)，hex小写
+ *
+ * 例：data={page:1,pageSize:10}, appKey=xxx, reqTime=yyy
+ * → 排序后 key: page, pagesize
+ * → strToSign = xxx + "1" + "10" + yyy
  */
-function sortObjectKeys(obj: Record<string, any>): Record<string, any> {
-  return Object.fromEntries(Object.entries(obj).sort(([a], [b]) => a.localeCompare(b)))
-}
-
-function generateAuthCode(appKey: string, appSecret: string, reqTime: string, data: Record<string, any>): string {
+function generateAuthcode(appKey: string, appSecret: string, reqTime: string, data: Record<string, any>): string {
   const { createHmac } = require('crypto') as typeof import('crypto')
-  const sortedData  = sortObjectKeys(data)
-  const strToSign   = appKey + JSON.stringify(sortedData) + reqTime
+
+  // key转小写，按字典序排序，拼接各value
+  const valuesStr = Object.entries(data)
+    .map(([k, v]) => [k.toLowerCase(), v] as [string, any])
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, v]) => String(v))
+    .join('')
+
+  const strToSign = appKey + valuesStr + reqTime
   return createHmac('sha256', appSecret).update(strToSign).digest('hex')
 }
 
@@ -51,9 +58,9 @@ async function omsRequest(
   data: Record<string, any> = {}
 ): Promise<any> {
   const reqTime  = String(Math.floor(Date.now() / 1000))
-  const authCode = generateAuthCode(appKey, appSecret, reqTime, data)
+  const authCode = generateAuthcode(appKey, appSecret, reqTime, data)
 
-  const body = { appKey, data, reqTime, authcode: authcode }
+  const body = { appKey, data, reqTime, authcode: authCode }
 
   const res = await fetch(`${API_BASE}${endpoint}`, {
     method:  'POST',
