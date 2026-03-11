@@ -21,6 +21,45 @@ export interface OmsCredential {
   warehouse_ids?: string[]
 }
 
+// ── Token cache (in-memory, per process) ─────────────────────
+const tokenCache: Record<string, { authcode: string; expiresAt: number }> = {}
+
+// 领星OMS token 获取接口（尝试多个可能的路径）
+async function getAuthcode(appKey: string, appSecret: string): Promise<string> {
+  const cached = tokenCache[appKey]
+  if (cached && cached.expiresAt > Date.now() + 60_000) return cached.authcode
+
+  const candidates = [
+    `${API_BASE}/v1/auth/token`,
+    `${API_BASE}/v1/auth/getToken`,
+    `${API_BASE}/auth/token`,
+    `${API_BASE}/v1/open/auth/token`,
+  ]
+
+  let lastError = ''
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appKey, appSecret }),
+      })
+      const json = await res.json()
+      const code = json.code ?? json.status
+      const token = json.data?.authcode ?? json.data?.token ?? json.data?.accessToken ?? json.data?.access_token
+      if ((code === 200 || code === 0 || code === '200' || code === '0') && token) {
+        const ttl = (json.data?.expiresIn ?? json.data?.expire ?? json.data?.expires_in ?? 7200) * 1000
+        tokenCache[appKey] = { authcode: token, expiresAt: Date.now() + ttl }
+        return token
+      }
+      lastError = `[${url}] code=${code} msg=${json.message ?? json.msg ?? JSON.stringify(json).slice(0, 100)}`
+    } catch (e) {
+      lastError = `[${url}] ${e instanceof Error ? e.message : String(e)}`
+    }
+  }
+  throw new Error(`获取 OMS Token 失败。尝试了以下接口均无效：${lastError}`)
+}
+
 // ── Core request ─────────────────────────────────────────────
 async function omsRequest(
   appKey: string,
@@ -28,26 +67,32 @@ async function omsRequest(
   endpoint: string,
   body: Record<string, any> = {}
 ): Promise<any> {
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const authcode = await getAuthcode(appKey, appSecret)
+
+  const doRequest = async (code: string) => fetch(`${API_BASE}${endpoint}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'appKey': appKey,
-      'appSecret': appSecret,
-    },
-    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...body, authcode: code }),
   })
 
-  if (!res.ok) {
-    throw new Error(`OMS HTTP ${res.status}: ${endpoint}`)
+  let res = await doRequest(authcode)
+  if (!res.ok) throw new Error(`OMS HTTP ${res.status}: ${endpoint}`)
+
+  let json = await res.json()
+  let responseCode = json.code ?? json.status
+
+  // authcode 过期 → 清缓存重试一次
+  if (responseCode === 11001 || responseCode === '11001') {
+    delete tokenCache[appKey]
+    const fresh = await getAuthcode(appKey, appSecret)
+    res = await doRequest(fresh)
+    if (!res.ok) throw new Error(`OMS HTTP ${res.status}: ${endpoint}`)
+    json = await res.json()
+    responseCode = json.code ?? json.status
   }
 
-  const json = await res.json()
-
-  // OMS returns { code: 200, data: ... } or { code: 0, data: ... }
-  const code = json.code ?? json.status
-  if (code !== 200 && code !== 0 && code !== '200' && code !== '0') {
-    throw new Error(`OMS API错误 [${endpoint}]: code=${code} msg=${json.message ?? json.msg ?? '未知'}`)
+  if (responseCode !== 200 && responseCode !== 0 && responseCode !== '200' && responseCode !== '0') {
+    throw new Error(`OMS API错误 [${endpoint}]: code=${responseCode} msg=${json.message ?? json.msg ?? '未知'}`)
   }
 
   return json.data ?? json
