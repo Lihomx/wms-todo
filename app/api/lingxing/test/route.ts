@@ -4,63 +4,63 @@ import { createHmac } from 'crypto'
 
 const API_BASE = 'https://api.xlwms.com/openapi'
 
-function makeAuthcode(appKey: string, appSecret: string, reqTime: string, data: Record<string, any>): string {
+function makeAuthcode(appKey: string, appSecret: string, reqTime: string, data: Record<string,any>): string {
   const valuesStr = Object.entries(data)
-    .map(([k, v]) => [k.toLowerCase(), v] as [string, any])
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([, v]) => String(v)).join('')
+    .map(([k,v])=>[k.toLowerCase(),v] as [string,any])
+    .sort(([a],[b])=>a.localeCompare(b))
+    .map(([,v])=>String(v)).join('')
   return createHmac('sha256', appSecret).update(appKey + valuesStr + reqTime).digest('hex')
 }
 
-async function callOMS(body: Record<string, any>, endpoint: string): Promise<{ok: boolean; code: any; msg: string; raw: string}> {
-  const res  = await fetch(`${API_BASE}${endpoint}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  const raw  = await res.text()
-  let json: any = {}
-  try { json = JSON.parse(raw) } catch { /* */ }
-  const code = json.code ?? json.status
-  return { ok: code==200||code==0||code=='200'||code=='0', code, msg: json.message ?? json.msg ?? '-', raw: raw.slice(0,300) }
-}
-
 export async function POST(req: NextRequest) {
-  const steps: { step: string; status: 'ok'|'fail'|'info'; detail: string }[] = []
+  const steps: {step:string;status:'ok'|'fail'|'info';detail:string}[] = []
   const { appKey, appSecret } = await req.json()
 
-  // ── 用全小写key发请求（与签名计算完全一致）──
-  const reqTime = String(Math.floor(Date.now() / 1000))
+  const reqTime  = '1773253660' // 固定值，方便和验签工具对比
+  const data     = { page: 1, pagesize: 10 }
+  const authcode = makeAuthcode(appKey, appSecret, reqTime, data)
+  const body     = { appKey, ...data, reqTime, authcode }
+  const bodyStr  = JSON.stringify(body)
 
-  // 试验A: 全小写key，展开
-  const dataA = { page: 1, pagesize: 10 }
-  const codeA = makeAuthcode(appKey, appSecret, reqTime, dataA)
-  const bodyA = { appKey, ...dataA, reqTime, authcode: codeA }
-  steps.push({ step: 'A. 全小写key展开: {page,pagesize}', status: 'info',
-    detail: `body=${JSON.stringify(bodyA)}\nauthcode=${codeA}` })
-  const rA = await callOMS(bodyA, '/v1/warehouse/options')
-  steps.push({ step: 'A结果', status: rA.ok?'ok':'fail', detail: `code=${rA.code} msg=${rA.msg}\n${rA.raw}` })
+  steps.push({ step: '发送的原始请求体', status: 'info', detail: bodyStr })
+  steps.push({ step: '请求体字节长度', status: 'info', detail: `${new TextEncoder().encode(bodyStr).length} bytes` })
+  steps.push({ step: 'authcode值', status: 'info', detail: authcode })
+  steps.push({ step: '期望authcode', status: 'info', detail: '4009f25981d4e8fb72aeb6c64e43894ee32dc368c0eb19df56f59477dc312ca4' })
+  steps.push({ step: '签名匹配', status: authcode === '4009f25981d4e8fb72aeb6c64e43894ee32dc368c0eb19df56f59477dc312ca4' ? 'ok' : 'fail',
+    detail: authcode === '4009f25981d4e8fb72aeb6c64e43894ee32dc368c0eb19df56f59477dc312ca4' ? '✅ 完全匹配' : '❌ 不匹配' })
 
-  // 试验B: 全小写key，嵌套data
-  const bodyB = { appKey, data: dataA, reqTime, authcode: codeA }
-  const rB = await callOMS(bodyB, '/v1/warehouse/options')
-  steps.push({ step: 'B. 全小写key嵌套data', status: rB.ok?'ok':'fail',
-    detail: `body=${JSON.stringify(bodyB)}\ncode=${rB.code} msg=${rB.msg}\n${rB.raw}` })
+  // 发请求，打印完整响应头
+  try {
+    const res = await fetch(`${API_BASE}/v1/warehouse/options`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: bodyStr,
+    })
+    const raw = await res.text()
 
-  // 试验C: 空data，只有appKey+reqTime签名
-  const dataC = {} as Record<string, any>
-  const codeC = makeAuthcode(appKey, appSecret, reqTime, dataC)
-  const bodyC = { appKey, page: 1, pageSize: 10, reqTime, authcode: codeC }
-  const rC = await callOMS(bodyC, '/v1/warehouse/options')
-  steps.push({ step: 'C. 签名用空data，业务参数单独传', status: rC.ok?'ok':'fail',
-    detail: `body=${JSON.stringify(bodyC)}\nauthcode=${codeC}\ncode=${rC.code} msg=${rC.msg}\n${rC.raw}` })
+    // 打印所有响应头
+    const headers: Record<string,string> = {}
+    res.headers.forEach((v,k) => { headers[k] = v })
 
-  // 试验D: 只传appKey+reqTime，不传业务参数
-  const dataD = {} as Record<string, any>
-  const codeD = makeAuthcode(appKey, appSecret, reqTime, dataD)
-  const bodyD = { appKey, reqTime, authcode: codeD }
-  const rD = await callOMS(bodyD, '/v1/warehouse/options')
-  steps.push({ step: 'D. 最简请求（无业务参数）', status: rD.ok?'ok':'fail',
-    detail: `body=${JSON.stringify(bodyD)}\nauthcode=${codeD}\ncode=${rD.code} msg=${rD.msg}\n${rD.raw}` })
+    steps.push({ step: 'HTTP状态码', status: 'info', detail: String(res.status) })
+    steps.push({ step: '响应头', status: 'info', detail: JSON.stringify(headers, null, 2) })
+    steps.push({ step: '响应体', status: res.ok ? 'ok' : 'fail', detail: raw })
+
+    // 也试试用固定reqTime=1773250466（之前验签工具用过的）
+    const reqTime2  = '1773250466'
+    const authcode2 = makeAuthcode(appKey, appSecret, reqTime2, data)
+    const body2     = { appKey, ...data, reqTime: reqTime2, authcode: authcode2 }
+    const res2 = await fetch(`${API_BASE}/v1/warehouse/options`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body2),
+    })
+    const raw2 = await res2.text()
+    steps.push({ step: '用旧reqTime=1773250466重试', status: 'info',
+      detail: `authcode=${authcode2}\n响应: ${raw2}` })
+
+  } catch(e:any) {
+    steps.push({ step: '请求异常', status: 'fail', detail: e.message + '\n' + e.stack })
+  }
 
   return NextResponse.json({ steps })
 }
