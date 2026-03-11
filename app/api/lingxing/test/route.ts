@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       const res = await fetch(`${API_BASE}/v1/inboundOrder/pageList`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appKey, data: inboundData, reqTime: reqTime2, authcode: authCode2 }),
+        body: JSON.stringify({ appKey, data: inboundData, reqTime: reqTime2, authcode: authCode2 }), 
       })
       const raw = await res.text()
       let json: any = {}
