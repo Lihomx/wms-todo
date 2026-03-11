@@ -16,50 +16,61 @@ export async function POST(req: NextRequest) {
   const steps: {step:string;status:'ok'|'fail'|'info';detail:string}[] = []
   const { appKey, appSecret } = await req.json()
 
-  const reqTime  = '1773253660' // 固定值，方便和验签工具对比
+  // ── Step 1: 查询本机出口IP ────────────────────────────────
+  try {
+    const ipRes  = await fetch('https://api.ipify.org?format=json')
+    const ipJson = await ipRes.json()
+    steps.push({ step: 'Vercel出口IP', status: 'info', detail: ipJson.ip })
+  } catch(e:any) {
+    steps.push({ step: 'Vercel出口IP', status: 'fail', detail: e.message })
+  }
+
+  // ── Step 2: 正常签名请求 ──────────────────────────────────
+  const reqTime  = String(Math.floor(Date.now() / 1000))
   const data     = { page: 1, pagesize: 10 }
   const authcode = makeAuthcode(appKey, appSecret, reqTime, data)
   const body     = { appKey, ...data, reqTime, authcode }
-  const bodyStr  = JSON.stringify(body)
 
-  steps.push({ step: '发送的原始请求体', status: 'info', detail: bodyStr })
-  steps.push({ step: '请求体字节长度', status: 'info', detail: `${new TextEncoder().encode(bodyStr).length} bytes` })
-  steps.push({ step: 'authcode值', status: 'info', detail: authcode })
-  steps.push({ step: '期望authcode', status: 'info', detail: '4009f25981d4e8fb72aeb6c64e43894ee32dc368c0eb19df56f59477dc312ca4' })
-  steps.push({ step: '签名匹配', status: authcode === '4009f25981d4e8fb72aeb6c64e43894ee32dc368c0eb19df56f59477dc312ca4' ? 'ok' : 'fail',
-    detail: authcode === '4009f25981d4e8fb72aeb6c64e43894ee32dc368c0eb19df56f59477dc312ca4' ? '✅ 完全匹配' : '❌ 不匹配' })
-
-  // 发请求，打印完整响应头
   try {
     const res = await fetch(`${API_BASE}/v1/warehouse/options`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: bodyStr,
+      body: JSON.stringify(body),
     })
     const raw = await res.text()
-
-    // 打印所有响应头
-    const headers: Record<string,string> = {}
-    res.headers.forEach((v,k) => { headers[k] = v })
-
-    steps.push({ step: 'HTTP状态码', status: 'info', detail: String(res.status) })
-    steps.push({ step: '响应头', status: 'info', detail: JSON.stringify(headers, null, 2) })
-    steps.push({ step: '响应体', status: res.ok ? 'ok' : 'fail', detail: raw })
-
-    // 也试试用固定reqTime=1773250466（之前验签工具用过的）
-    const reqTime2  = '1773250466'
-    const authcode2 = makeAuthcode(appKey, appSecret, reqTime2, data)
-    const body2     = { appKey, ...data, reqTime: reqTime2, authcode: authcode2 }
-    const res2 = await fetch(`${API_BASE}/v1/warehouse/options`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body2),
-    })
-    const raw2 = await res2.text()
-    steps.push({ step: '用旧reqTime=1773250466重试', status: 'info',
-      detail: `authcode=${authcode2}\n响应: ${raw2}` })
-
+    const json = JSON.parse(raw)
+    const code = json.code ?? json.status
+    const ok = code===200||code===0||code==='200'||code==='0'
+    steps.push({ step: 'OMS仓库接口', status: ok?'ok':'fail',
+      detail: `code=${code} msg=${json.message}\n${raw}` })
   } catch(e:any) {
-    steps.push({ step: '请求异常', status: 'fail', detail: e.message + '\n' + e.stack })
+    steps.push({ step: 'OMS仓库接口', status: 'fail', detail: e.message })
+  }
+
+  // ── Step 3: 用不同Content-Type试试 ───────────────────────
+  try {
+    const res = await fetch(`${API_BASE}/v1/warehouse/options`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0',
+      },
+      body: JSON.stringify(body),
+    })
+    const raw = await res.text()
+    steps.push({ step: '加User-Agent重试', status: 'info', detail: raw })
+  } catch(e:any) {
+    steps.push({ step: '加User-Agent重试', status: 'fail', detail: e.message })
+  }
+
+  // ── Step 4: 检查是否能正常访问xlwms.com ──────────────────
+  try {
+    const res = await fetch('https://oms.xlwms.com', { method: 'GET' })
+    steps.push({ step: '访问oms.xlwms.com', status: 'ok',
+      detail: `HTTP ${res.status}` })
+  } catch(e:any) {
+    steps.push({ step: '访问oms.xlwms.com', status: 'fail', detail: e.message })
   }
 
   return NextResponse.json({ steps })
