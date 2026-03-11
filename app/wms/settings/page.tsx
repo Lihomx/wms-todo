@@ -28,6 +28,22 @@ export default function SettingsPage() {
   const [success,   setSuccess]   = useState('')
   const [syncRes,   setSyncRes]   = useState<SyncResult | null>(null)
   const [tab,       setTab]       = useState<'bind' | 'guide'>('bind')
+  const [testing,   setTesting]   = useState(false)
+  const [testSteps, setTestSteps] = useState<{step:string;status:string;detail:string}[]|null>(null)
+
+  const handleTest = async () => {
+    if (!appKey.trim() || !appSecret.trim()) { setError('请先填写 AppKey 和 AppSecret'); return }
+    setTesting(true); setTestSteps(null); setError('')
+    try {
+      const r = await fetch('/api/lingxing/test', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appKey: appKey.trim(), appSecret: appSecret.trim() }),
+      })
+      const d = await r.json()
+      setTestSteps(d.steps ?? [])
+    } catch { setError('连接测试请求失败') }
+    finally { setTesting(false) }
+  }
 
   const loadStatus = useCallback(async () => {
     try { const r = await fetch('/api/lingxing/bind'); setStatus(await r.json()) }
@@ -161,6 +177,30 @@ export default function SettingsPage() {
                   {syncRes.success && <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>耗时 {syncRes.duration} · 新建 {syncRes.todosCreated} · 更新 {syncRes.todosUpdated}</div>}
                 </div>
               )}
+
+              {/* 诊断测试结果 */}
+              {testSteps && (
+                <div style={{ marginBottom: '16px', background: '#0a0f1a', border: '1px solid #2a3250', borderRadius: '10px', overflow: 'hidden' }}>
+                  <div style={{ padding: '10px 14px', background: '#111827', borderBottom: '1px solid #2a3250', fontSize: '12px', fontWeight: 700, color: '#94a3b8' }}>
+                    🔍 连接诊断结果
+                  </div>
+                  {testSteps.map((s, i) => (
+                    <div key={i} style={{ padding: '10px 14px', borderBottom: i < testSteps.length-1 ? '1px solid #1e293b' : 'none' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                        <span>{s.status === 'ok' ? '✅' : s.status === 'fail' ? '❌' : 'ℹ️'}</span>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: s.status === 'ok' ? '#22c55e' : s.status === 'fail' ? '#ef4444' : '#94a3b8' }}>{s.step}</span>
+                      </div>
+                      <pre style={{ margin: 0, fontSize: '11px', color: '#64748b', whiteSpace: 'pre-wrap', wordBreak: 'break-all', paddingLeft: '24px', lineHeight: 1.6 }}>{s.detail}</pre>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                <button onClick={handleTest} disabled={testing} style={{ flex: 1, padding: '11px', borderRadius: '10px', border: '1px solid #2a3250', background: testing ? '#1e293b' : '#111827', color: testing ? '#64748b' : '#94a3b8', fontSize: '13px', fontWeight: 600, cursor: testing ? 'not-allowed' : 'pointer' }}>
+                  {testing ? '⏳ 测试中...' : '🔍 连接测试（不保存）'}
+                </button>
+              </div>
 
               <button onClick={handleBind} disabled={loading} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: 'none', background: loading ? '#1e293b' : 'linear-gradient(135deg,#3b82f6,#2563eb)', color: loading ? '#64748b' : 'white', fontSize: '14px', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer' }}>
                 {loading ? '⏳ 验证中...' : `🔗 ${isBound ? '更新绑定' : '验证并绑定'}`}
