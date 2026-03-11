@@ -23,6 +23,7 @@
     "@types/crypto-js": "^4.2.2",
     "typescript": "^5",
     "eslint": "^8",
-    "eslint-config-next": "15.3.1"
+    "eslint-config-next": "15.3.1",
+    "autoprefixer": "^10.4.19"
   }
 }
