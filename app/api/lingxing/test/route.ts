@@ -29,10 +29,13 @@ export async function POST(req: NextRequest) {
   const reqTime  = String(Math.floor(Date.now() / 1000))
   const data     = { page: 1, pagesize: 10 }
   const authcode = makeAuthcode(appKey, appSecret, reqTime, data)
-  const body     = { appKey, ...data, reqTime, authcode }
+  const body     = { appKey, ...data, reqTime }
+  const url      = `${API_BASE}/v1/warehouse/options?authcode=${authcode}`
+
+  steps.push({ step: '请求URL（authcode在params）', status: 'info', detail: url })
 
   try {
-    const res = await fetch(`${API_BASE}/v1/warehouse/options`, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),

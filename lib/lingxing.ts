@@ -61,10 +61,11 @@ async function omsRequest(
   const reqTime  = String(Math.floor(Date.now() / 1000))
   const authcode = generateAuthcode(appKey, appSecret, reqTime, data)
 
-  // data 字段展开到顶层，不嵌套在 data:{} 里
-  const body = { appKey, ...data, reqTime, authcode }
+  // authcode 放 URL query params，请求体放业务数据（已验证）
+  const url  = `${API_BASE}${endpoint}?authcode=${authcode}`
+  const body = { appKey, ...data, reqTime }
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetch(url, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify(body),
