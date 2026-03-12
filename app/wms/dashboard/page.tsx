@@ -1,93 +1,152 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
+
+interface Todo { id: string; status: number; priority: number; due_date?: string; category: string; title: string; created_at: string; source: string }
+
+const CATS = [
+  { key: '入库作业', label: '入库管理', icon: '📦', color: '#3b82f6', desc: '入库预报 · 收货上架' },
+  { key: '出库作业', label: '出库管理', icon: '🚚', color: '#f97316', desc: '一件代发 · FBA备货' },
+  { key: '库存管理', label: '库存预警', icon: '📊', color: '#a855f7', desc: '滞销预警 · 库存异常' },
+  { key: '退货处理', label: '退货处理', icon: '↩️', color: '#ef4444', desc: '退件处理 · 质检入库' },
+  { key: '工单审批', label: '工单审批', icon: '📋', color: '#22c55e', desc: '操作申请 · 异常审批' },
+  { key: '其他',     label: '其他事项', icon: '⚡', color: '#eab308', desc: '临时任务 · 杂项待办' },
+]
 
 export default function DashboardPage() {
-  const [total,  setTotal]  = useState(0)
-  const [urgent, setUrgent] = useState(0)
-  const [dueToday, setDueToday] = useState(0)
-  const [done,   setDone]   = useState(0)
-  const [syncing,  setSyncing]  = useState(false)
-  const [syncMsg,  setSyncMsg]  = useState('')
+  const [todos, setTodos]   = useState<Todo[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetch('/api/todos?pageSize=500')
       .then(r => r.json())
-      .then(data => {
-        const todos: Array<{ status: number; priority: number; due_date?: string }> = data.todos ?? []
-        const todayStr = new Date().toISOString().split('T')[0]
-        setTotal(todos.filter(t => t.status !== 2).length)
-        setUrgent(todos.filter(t => t.priority === 1 && t.status !== 2).length)
-        setDueToday(todos.filter(t => t.due_date === todayStr && t.status !== 2).length)
-        setDone(todos.filter(t => t.status === 2).length)
-      })
-      .catch(() => {})
+      .then(d => { setTodos(d.todos ?? []); setLoading(false) })
+      .catch(() => setLoading(false))
   }, [])
 
-  const handleSync = async () => {
-    setSyncing(true); setSyncMsg('')
-    try {
-      const res  = await fetch('/api/lingxing/sync', { method: 'POST' })
-      const data = await res.json()
-      setSyncMsg(data.success ? `✅ ${data.message}` : `❌ ${data.error}`)
-    } catch {
-      setSyncMsg('❌ 同步失败')
-    } finally {
-      setSyncing(false)
-    }
-  }
+  const active   = todos.filter(t => t.status !== 2 && t.status !== 3)
+  const today    = new Date().toISOString().split('T')[0]
+  const overdue  = active.filter(t => t.due_date && t.due_date < today)
+  const dueToday = active.filter(t => t.due_date === today)
+  const urgent   = active.filter(t => t.priority === 1)
+  const done     = todos.filter(t => t.status === 2)
 
-  const cards = [
-    { label: '全部待办', value: total,    color: '#3b82f6', icon: '≡' },
-    { label: '紧急待办', value: urgent,   color: '#ef4444', icon: '!' },
-    { label: '今日到期', value: dueToday, color: '#f97316', icon: '📅' },
-    { label: '已完成',   value: done,     color: '#22c55e', icon: '✓' },
-  ]
+  const catStats = CATS.map(c => {
+    const catTodos = todos.filter(t => t.category === c.key)
+    const catActive = catTodos.filter(t => t.status !== 2 && t.status !== 3)
+    const catUrgent = catActive.filter(t => t.priority === 1)
+    const catOverdue = catActive.filter(t => t.due_date && t.due_date < today)
+    return { ...c, total: catActive.length, urgent: catUrgent.length, overdue: catOverdue.length, done: catTodos.filter(t=>t.status===2).length }
+  })
 
-  const shortcuts = [
-    { label: '入库管理', icon: '📦', href: '/wms/todos?category=%E5%85%A5%E5%BA%93%E4%BD%9C%E4%B8%9A' },
-    { label: '出库管理', icon: '🚚', href: '/wms/todos?category=%E5%87%BA%E5%BA%93%E4%BD%9C%E4%B8%9A' },
-    { label: '库存预警', icon: '📊', href: '/wms/todos?category=%E5%BA%93%E5%AD%98%E7%AE%A1%E7%90%86' },
-    { label: '退货处理', icon: '↩',  href: '/wms/todos?category=%E9%80%80%E8%B4%A7%E5%A4%84%E7%90%86' },
-    { label: '系统设置', icon: '⚙️', href: '/wms/settings' },
+  const recentTodos = [...todos].filter(t=>t.status!==2).sort((a,b)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime()).slice(0,8)
+
+  const statCards = [
+    { label: '进行中待办', value: active.length,    color: '#3b82f6', bg: '#1e3a5f', icon: '▶' },
+    { label: '已逾期',     value: overdue.length,   color: '#ef4444', bg: '#4a1919', icon: '⚠' },
+    { label: '今日到期',   value: dueToday.length,  color: '#f97316', bg: '#4a2a10', icon: '📅' },
+    { label: '紧急任务',   value: urgent.length,    color: '#a855f7', bg: '#35174e', icon: '🔴' },
+    { label: '今日完成',   value: done.filter(t=>t.due_date===today||new Date(t.created_at).toISOString().split('T')[0]===today).length, color: '#22c55e', bg: '#14391f', icon: '✓' },
+    { label: '总待办数',   value: todos.length,     color: '#94a3b8', bg: '#1e2535', icon: '≡' },
   ]
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '28px 32px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '28px' }}>
-        <div>
-          <h1 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '4px' }}>仓库工作台</h1>
-          <div style={{ fontSize: '13px', color: '#64748b' }}>{new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}</div>
-        </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {syncMsg && <span style={{ fontSize: '12px', color: syncMsg.startsWith('✅') ? '#22c55e' : '#ef4444' }}>{syncMsg}</span>}
-          <button onClick={handleSync} disabled={syncing} style={{ padding: '8px 18px', borderRadius: '8px', border: 'none', background: syncing ? '#1e293b' : 'linear-gradient(135deg,#3b82f6,#2563eb)', color: syncing ? '#64748b' : 'white', fontSize: '13px', fontWeight: 600, cursor: syncing ? 'not-allowed' : 'pointer' }}>
-            {syncing ? '⏳ 同步中...' : '🔄 立即同步'}
-          </button>
-        </div>
-      </div>
+    <div style={{ flex: 1, overflowY: 'auto', background: '#0d1117' }}>
+      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '28px 24px' }}>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '16px', marginBottom: '28px' }}>
-        {cards.map(({ label, value, color, icon }) => (
-          <div key={label} style={{ background: '#1c2333', border: '1px solid #2a3250', borderRadius: '12px', padding: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: `${color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', color }}>{icon}</div>
-              <span style={{ fontSize: '13px', color: '#94a3b8' }}>{label}</span>
-            </div>
-            <div style={{ fontSize: '32px', fontWeight: 700, color, fontFamily: 'monospace' }}>{value}</div>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
+          <div>
+            <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#f1f5f9', letterSpacing: '-0.3px' }}>仓储作业中心</h1>
+            <p style={{ fontSize: '13px', color: '#475569', marginTop: '4px' }}>{today} · {loading ? '加载中...' : `共 ${todos.length} 条待办`}</p>
           </div>
-        ))}
-      </div>
+          <Link href="/wms/todos/new" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '9px 18px', borderRadius: '8px', background: '#3b82f6', color: 'white', fontWeight: 700, fontSize: '13px', textDecoration: 'none', boxShadow: '0 0 16px #3b82f644' }}>
+            + 新建待办
+          </Link>
+        </div>
 
-      <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#94a3b8', marginBottom: '14px' }}>快速入口</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '12px' }}>
-        {shortcuts.map(({ label, icon, href }) => (
-          <a key={label} href={href} style={{ background: '#1c2333', border: '1px solid #2a3250', borderRadius: '12px', padding: '18px 16px', display: 'block', transition: 'border-color .2s' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = '#3b82f6' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = '#2a3250' }}>
-            <div style={{ fontSize: '28px', marginBottom: '10px' }}>{icon}</div>
-            <div style={{ fontSize: '13px', fontWeight: 700 }}>{label}</div>
-          </a>
-        ))}
+        {/* Stat Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: '12px', marginBottom: '28px' }}>
+          {statCards.map(s => (
+            <div key={s.label} style={{ background: s.bg, border: `1px solid ${s.color}22`, borderRadius: '10px', padding: '16px 14px' }}>
+              <div style={{ fontSize: '22px', fontWeight: 800, color: s.color, lineHeight: 1 }}>{loading ? '—' : s.value}</div>
+              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '6px', fontWeight: 600 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px' }}>
+          {/* Category Kanban */}
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#64748b', marginBottom: '14px', letterSpacing: '1px', textTransform: 'uppercase' }}>业务分类看板</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px' }}>
+              {catStats.map(c => (
+                <Link key={c.key} href={`/wms/todos?category=${encodeURIComponent(c.key)}`} style={{ textDecoration: 'none' }}>
+                  <div style={{ background: '#161b26', border: `1px solid ${c.total > 0 ? c.color+'33' : '#2a3250'}`, borderRadius: '12px', padding: '18px', cursor: 'pointer', transition: 'border-color 0.2s' }}
+                    onMouseEnter={e=>(e.currentTarget.style.borderColor=c.color+'66')}
+                    onMouseLeave={e=>(e.currentTarget.style.borderColor=c.total>0?c.color+'33':'#2a3250')}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <div>
+                        <div style={{ fontSize: '20px', marginBottom: '6px' }}>{c.icon}</div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#e2e8f0' }}>{c.label}</div>
+                        <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>{c.desc}</div>
+                      </div>
+                      <div style={{ fontSize: '28px', fontWeight: 800, color: c.total > 0 ? c.color : '#2a3250', lineHeight: 1 }}>{c.total}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {c.overdue > 0 && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: '#ef444422', color: '#ef4444', fontWeight: 600 }}>逾期 {c.overdue}</span>}
+                      {c.urgent  > 0 && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: '#a855f722', color: '#a855f7', fontWeight: 600 }}>紧急 {c.urgent}</span>}
+                      {c.done    > 0 && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: '#22c55e22', color: '#22c55e', fontWeight: 600 }}>完成 {c.done}</span>}
+                      {c.total === 0 && <span style={{ fontSize: '11px', color: '#475569' }}>暂无待办</span>}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Recent Todos */}
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#64748b', marginBottom: '14px', letterSpacing: '1px', textTransform: 'uppercase' }}>最新待办</div>
+            <div style={{ background: '#161b26', border: '1px solid #2a3250', borderRadius: '12px', overflow: 'hidden' }}>
+              {loading ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#475569' }}>加载中...</div>
+              ) : recentTodos.length === 0 ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#475569' }}>
+                  <div style={{ fontSize: '28px', marginBottom: '8px' }}>✅</div>
+                  <div style={{ fontSize: '13px' }}>暂无进行中待办</div>
+                  <Link href="/wms/todos/new" style={{ display: 'inline-block', marginTop: '12px', fontSize: '12px', color: '#3b82f6', textDecoration: 'none' }}>+ 新建第一个待办</Link>
+                </div>
+              ) : recentTodos.map((t, i) => {
+                const priColor = t.priority === 1 ? '#ef4444' : t.priority === 2 ? '#3b82f6' : '#64748b'
+                const isOverdue = t.due_date && t.due_date < today
+                return (
+                  <Link key={t.id} href={`/wms/todos?id=${t.id}`} style={{ textDecoration: 'none' }}>
+                    <div style={{ padding: '12px 14px', borderBottom: i < recentTodos.length-1 ? '1px solid #1e2535' : 'none', display: 'flex', gap: '10px', alignItems: 'flex-start' }}
+                      onMouseEnter={e=>(e.currentTarget.style.background='#1c2333')}
+                      onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
+                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: priColor, marginTop: '6px', flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '12px', color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</div>
+                        <div style={{ display: 'flex', gap: '6px', marginTop: '4px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '10px', color: '#475569' }}>{t.category}</span>
+                          {isOverdue && <span style={{ fontSize: '10px', color: '#ef4444', fontWeight: 600 }}>逾期</span>}
+                          {t.due_date && <span style={{ fontSize: '10px', color: isOverdue ? '#ef4444' : '#475569' }}>{t.due_date}</span>}
+                          {t.source === 'lingxing_auto' && <span style={{ fontSize: '10px', color: '#06b6d4' }}>领星</span>}
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+              {todos.filter(t=>t.status!==2).length > 8 && (
+                <Link href="/wms/todos" style={{ display: 'block', textAlign: 'center', padding: '12px', fontSize: '12px', color: '#3b82f6', textDecoration: 'none', borderTop: '1px solid #1e2535' }}>
+                  查看全部 {todos.filter(t=>t.status!==2).length} 条 →
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
