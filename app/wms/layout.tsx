@@ -14,6 +14,10 @@ const NAV = [
     { href: '/wms/todos?category=%E5%BA%93%E5%AD%98%E7%AE%A1%E7%90%86', icon: '📊', label: '库存预警' },
     { href: '/wms/todos?category=%E9%80%80%E8%B4%A7%E5%A4%84%E7%90%86', icon: '↩',  label: '退货处理' },
   ]},
+  { group: '领星数据', items: [
+    { href: '/wms/oms-data', icon: '🔗', label: 'OMS 数据总览' },
+    { href: '/wms/sync',     icon: '⟳',  label: '数据同步' },
+  ]},
   { group: '系统', items: [
     { href: '/wms/settings', icon: '⚙️', label: '系统设置' },
   ]},
