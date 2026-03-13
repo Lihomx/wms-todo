@@ -3,46 +3,65 @@ import { useState } from 'react'
 import Link from 'next/link'
 
 const SYNC_TYPES = [
-  { key:'inbound',     label:'入库单',     icon:'📦', desc:'同步入库单 → 生成入库待办' },
-  { key:'outbound',    label:'小包出库',   icon:'🚚', desc:'同步一件代发出库单' },
-  { key:'bigOutbound', label:'大货出库',   icon:'🚛', desc:'同步FBA备货/送仓单' },
-  { key:'returns',     label:'退件单',     icon:'↩️', desc:'同步退件记录 → 生成退件待办' },
-  { key:'inventory',   label:'库存预警',   icon:'📊', desc:'扫描低库存 → 生成预警待办' },
+  {key:'inbound',     label:'入库单',   icon:'📦', desc:'同步入库单 → 生成入库作业待办'},
+  {key:'outbound',    label:'小包出库', icon:'🚚', desc:'同步一件代发出库单 → 生成出库待办'},
+  {key:'bigOutbound', label:'大货出库', icon:'🚛', desc:'同步FBA备货/送仓单 → 生成出库待办'},
+  {key:'returns',     label:'退件单',   icon:'↩️', desc:'同步退件记录 → 生成退货处理待办'},
+  {key:'inventory',   label:'库存预警', icon:'📊', desc:'扫描低库存(≤10) → 生成库存预警待办'},
 ]
 
-interface SyncResult { success:boolean; created:number; skipped:number; errors:string[]; message:string }
+interface SyncResult {success:boolean;message:string;created:number;skipped:number;errors:string[]}
 
 export default function SyncPage() {
   const [results,  setResults]  = useState<Record<string,SyncResult>>({})
   const [loading,  setLoading]  = useState<Record<string,boolean>>({})
   const [syncing,  setSyncing]  = useState(false)
   const [lastSync, setLastSync] = useState<string|null>(null)
+  const [globalErr, setGlobalErr] = useState('')
 
-  const syncOne = async (type: string) => {
-    setLoading(l=>({...l,[type]:true}))
+  const doSync = async (type: string) => {
+    const isAll = type === 'all'
+    if(isAll) { setSyncing(true); setGlobalErr('') }
+    else setLoading(l=>({...l,[type]:true}))
+
     try {
-      const res  = await fetch('/api/lingxing/sync', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type}) })
+      const res  = await fetch('/api/lingxing/sync', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({type}),
+      })
       const data = await res.json()
-      setResults(r=>({...r,[type]:data}))
+
+      if(!res.ok || data.error) {
+        const msg = data.error ?? '同步失败'
+        if(isAll) setGlobalErr(msg)
+        else setResults(r=>({...r,[type]:{success:false,message:msg,created:0,skipped:0,errors:[msg]}}))
+        return
+      }
+
+      if(isAll && data.results) {
+        setResults(data.results)
+        setLastSync(new Date().toLocaleString('zh-CN'))
+      } else {
+        setResults(r=>({...r,[type]:data}))
+      }
     } catch(e:any) {
-      setResults(r=>({...r,[type]:{success:false,created:0,skipped:0,errors:[e.message],message:'同步失败'}}))
+      const msg = e.message ?? '网络错误'
+      if(isAll) setGlobalErr(msg)
+      else setResults(r=>({...r,[type]:{success:false,message:msg,created:0,skipped:0,errors:[msg]}}))
+    } finally {
+      if(isAll) setSyncing(false)
+      else setLoading(l=>({...l,[type]:false}))
     }
-    setLoading(l=>({...l,[type]:false}))
   }
 
-  const syncAll = async () => {
-    setSyncing(true)
-    const res  = await fetch('/api/lingxing/sync', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type:'all'}) })
-    const data = await res.json()
-    if (data.results) setResults(data.results)
-    setLastSync(new Date().toLocaleString('zh-CN'))
-    setSyncing(false)
-  }
+  const anyLoading = syncing || Object.values(loading).some(Boolean)
 
   return (
     <div style={{flex:1,overflowY:'auto',background:'#0d1117'}}>
       <div style={{maxWidth:'900px',margin:'0 auto',padding:'28px 24px'}}>
 
+        {/* Header */}
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'28px'}}>
           <div>
             <h1 style={{fontSize:'20px',fontWeight:800,color:'#f1f5f9'}}>数据同步</h1>
@@ -52,53 +71,53 @@ export default function SyncPage() {
           </div>
           <div style={{display:'flex',gap:'10px'}}>
             <Link href="/wms/oms-data" style={{padding:'8px 16px',borderRadius:'7px',border:'1px solid #2a3250',color:'#64748b',textDecoration:'none',fontSize:'12px'}}>📊 数据总览</Link>
-            <button onClick={syncAll} disabled={syncing} style={{padding:'8px 20px',borderRadius:'7px',background:'#3b82f6',border:'none',color:'white',fontWeight:700,fontSize:'13px',cursor:syncing?'not-allowed':'pointer',opacity:syncing?0.6:1,boxShadow:'0 0 12px #3b82f644'}}>
-              {syncing?'⟳ 同步中...':'⟳ 一键全部同步'}
+            <button onClick={()=>doSync('all')} disabled={anyLoading} style={{padding:'8px 20px',borderRadius:'7px',background:anyLoading?'#1e3a5f':'#3b82f6',border:'none',color:'white',fontWeight:700,fontSize:'13px',cursor:anyLoading?'not-allowed':'pointer',boxShadow:anyLoading?'none':'0 0 12px #3b82f644',transition:'all 0.2s'}}>
+              {syncing ? '⟳ 同步中...' : '⟳ 一键全部同步'}
             </button>
           </div>
         </div>
 
-        {/* Sync items */}
-        <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+        {globalErr && (
+          <div style={{marginBottom:'16px',padding:'12px 16px',background:'#ef444415',border:'1px solid #ef444433',borderRadius:'8px',color:'#ef4444',fontSize:'13px'}}>
+            ❌ {globalErr}
+          </div>
+        )}
+
+        <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
           {SYNC_TYPES.map(s=>{
-            const r=results[s.key]
-            const isLoading=loading[s.key]
+            const r = results[s.key]
+            const isLoading = loading[s.key] || syncing
             return (
-              <div key={s.key} style={{background:'#161b26',border:`1px solid ${r?.success?'#22c55e33':r?.success===false?'#ef444433':'#2a3250'}`,borderRadius:'12px',padding:'18px 20px',display:'flex',alignItems:'center',gap:'16px'}}>
-                <div style={{fontSize:'28px',flexShrink:0}}>{s.icon}</div>
-                <div style={{flex:1}}>
+              <div key={s.key} style={{background:'#161b26',border:`1px solid ${r?.success===true?'#22c55e33':r?.success===false?'#ef444433':'#2a3250'}`,borderRadius:'12px',padding:'16px 20px',display:'flex',alignItems:'center',gap:'16px',transition:'border-color 0.2s'}}>
+                <div style={{fontSize:'26px',width:'36px',textAlign:'center' as const,flexShrink:0}}>{s.icon}</div>
+                <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:'14px',fontWeight:700,color:'#f1f5f9'}}>{s.label}</div>
                   <div style={{fontSize:'11px',color:'#475569',marginTop:'2px'}}>{s.desc}</div>
                   {r && (
-                    <div style={{marginTop:'8px',display:'flex',gap:'10px',alignItems:'center',flexWrap:'wrap' as const}}>
-                      {r.success
-                        ? <span style={{fontSize:'12px',color:'#22c55e',fontWeight:600}}>✅ {r.message}</span>
-                        : <span style={{fontSize:'12px',color:'#ef4444',fontWeight:600}}>❌ {r.message}</span>}
-                      {r.created>0 && <span style={{fontSize:'11px',padding:'1px 8px',borderRadius:'4px',background:'#22c55e22',color:'#22c55e'}}>新建 {r.created} 条</span>}
-                      {r.skipped>0 && <span style={{fontSize:'11px',padding:'1px 8px',borderRadius:'4px',background:'#64748b22',color:'#64748b'}}>跳过 {r.skipped} 条</span>}
+                    <div style={{marginTop:'8px',display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap' as const}}>
+                      <span style={{fontSize:'12px',color:r.success?'#22c55e':'#ef4444',fontWeight:600}}>
+                        {r.success ? '✅' : '❌'} {r.message}
+                      </span>
+                      {r.created > 0 && <span style={{fontSize:'11px',padding:'1px 8px',borderRadius:'4px',background:'#22c55e22',color:'#22c55e',fontWeight:600}}>+{r.created} 新建</span>}
+                      {r.skipped > 0 && <span style={{fontSize:'11px',padding:'1px 8px',borderRadius:'4px',background:'#64748b22',color:'#64748b'}}>跳过 {r.skipped}</span>}
                     </div>
                   )}
-                  {r?.errors?.length>0 && (
-                    <div style={{marginTop:'6px',fontSize:'11px',color:'#ef4444'}}>
-                      {r.errors.slice(0,2).map((e,i)=><div key={i}>{e}</div>)}
-                    </div>
+                  {r?.errors?.length > 0 && (
+                    <div style={{marginTop:'4px',fontSize:'11px',color:'#ef4444',opacity:0.8}}>{r.errors[0]}</div>
                   )}
                 </div>
-                <button onClick={()=>syncOne(s.key)} disabled={isLoading||syncing} style={{padding:'8px 18px',borderRadius:'7px',border:'1px solid #3b82f644',background:'#1e3a5f',color:'#3b82f6',cursor:(isLoading||syncing)?'not-allowed':'pointer',fontSize:'12px',fontWeight:700,flexShrink:0,opacity:(isLoading||syncing)?0.5:1}}>
-                  {isLoading?'同步中...':'↻ 同步'}
+                <button onClick={()=>doSync(s.key)} disabled={anyLoading} style={{padding:'8px 18px',borderRadius:'7px',border:'1px solid #3b82f644',background:anyLoading?'transparent':'#1e3a5f',color:anyLoading?'#334155':'#3b82f6',cursor:anyLoading?'not-allowed':'pointer',fontSize:'12px',fontWeight:700,flexShrink:0,transition:'all 0.2s',minWidth:'72px'}}>
+                  {loading[s.key] ? '⟳' : '↻ 同步'}
                 </button>
               </div>
             )
           })}
         </div>
 
-        {/* Info box */}
-        <div style={{marginTop:'24px',padding:'16px',background:'#1e3a5f22',border:'1px solid #3b82f622',borderRadius:'10px',fontSize:'12px',color:'#475569',lineHeight:1.8}}>
-          <div style={{fontWeight:700,color:'#3b82f6',marginBottom:'6px'}}>ℹ️ 同步说明</div>
-          <div>• 同步不会创建重复待办，相同单号只会创建一次</div>
-          <div>• 已完成的待办不会被重新激活</div>
-          <div>• Railway Worker 会每15分钟自动同步一次（部署后生效）</div>
-          <div>• 手动同步可随时触发，不影响自动同步计划</div>
+        <div style={{marginTop:'20px',padding:'14px 16px',background:'#1e3a5f15',border:'1px solid #3b82f622',borderRadius:'10px',fontSize:'12px',color:'#475569',lineHeight:2}}>
+          <span style={{fontWeight:700,color:'#3b82f6'}}>ℹ️ 同步说明：</span>
+          同步不会重复创建（相同单号只建一次）· 已完成待办不会重新激活 · 
+          Railway Worker 每15分钟自动同步（部署后生效）
         </div>
       </div>
     </div>

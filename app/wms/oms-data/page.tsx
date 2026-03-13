@@ -1,192 +1,156 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 
-const DATA_TYPES: {key:string;label:string;icon:string;color:string;desc:string}[] = [
-  {key:'warehouses',        label:'仓库',          icon:'🏭', color:'#3b82f6', desc:'仓库基础信息'},
-  {key:'inbound',           label:'入库单',        icon:'📦', color:'#22c55e', desc:'所有入库订单'},
-  {key:'outbound',          label:'小包出库',      icon:'🚚', color:'#f97316', desc:'一件代发出库单'},
-  {key:'bigOutbound',       label:'大货出库',      icon:'🚛', color:'#f97316', desc:'FBA备货/送仓单'},
-  {key:'returns',           label:'退件单',        icon:'↩️', color:'#ef4444', desc:'退货退件记录'},
-  {key:'inventory',         label:'综合库存',      icon:'📊', color:'#a855f7', desc:'实时库存数据'},
-  {key:'customers',         label:'客户列表',      icon:'👥', color:'#06b6d4', desc:'所有客户信息'},
-  {key:'products',          label:'商品/SKU',      icon:'🏷️', color:'#eab308', desc:'商品SKU档案'},
-  {key:'workOrders',        label:'工单',          icon:'📋', color:'#64748b', desc:'操作工单记录'},
-  {key:'locations',         label:'库位',          icon:'📍', color:'#84cc16', desc:'库位基础信息'},
-  {key:'locationInventory', label:'库位库存',      icon:'🗄️', color:'#06b6d4', desc:'各库位库存分布'},
-  {key:'transferOrders',    label:'移库单',        icon:'🔄', color:'#8b5cf6', desc:'库内移库记录'},
-  {key:'adjustOrders',      label:'调整单',        icon:'⚖️', color:'#ec4899', desc:'库存调整记录'},
-  {key:'carriers',          label:'承运商',        icon:'🚀', color:'#94a3b8', desc:'物流承运商列表'},
+const DATA_TYPES = [
+  {key:'warehouses',  label:'仓库',     icon:'🏭', color:'#3b82f6', desc:'仓库基础信息'},
+  {key:'inbound',     label:'入库单',   icon:'📦', color:'#22c55e', desc:'所有入库订单'},
+  {key:'outbound',    label:'小包出库', icon:'🚚', color:'#f97316', desc:'一件代发出库单'},
+  {key:'bigOutbound', label:'大货出库', icon:'🚛', color:'#f97316', desc:'FBA备货/送仓单'},
+  {key:'returns',     label:'退件单',   icon:'↩️', color:'#ef4444', desc:'退货退件记录'},
+  {key:'inventory',   label:'综合库存', icon:'📊', color:'#a855f7', desc:'实时库存数据'},
 ]
 
-interface Summary { label:string; total:number; error?:string; sample:any[] }
+interface Summary {label:string;total:number;sample:any[];error?:string}
 
-function JsonViewer({ data }: { data: any }) {
-  const [collapsed, setCollapsed] = useState(true)
-  if (!data) return null
+function TableView({items}: {items:any[]}) {
+  if(!items||items.length===0) return <div style={{color:'#475569',fontSize:'12px',padding:'20px',textAlign:'center'}}>暂无数据</div>
+  const keys = Object.keys(items[0]).slice(0,10)
   return (
-    <div>
-      <button onClick={()=>setCollapsed(c=>!c)} style={{background:'none',border:'none',color:'#3b82f6',cursor:'pointer',fontSize:'11px',padding:'2px 0'}}>
-        {collapsed ? '▶ 展开查看' : '▼ 收起'}
-      </button>
-      {!collapsed && (
-        <pre style={{background:'#060910',border:'1px solid #1e2535',borderRadius:'6px',padding:'12px',fontSize:'10px',color:'#94a3b8',overflow:'auto',maxHeight:'400px',marginTop:'6px',lineHeight:1.5}}>
-          {JSON.stringify(data,null,2)}
-        </pre>
-      )}
-    </div>
-  )
-}
-
-function DetailTable({ items, type }: { items: any[]; type: string }) {
-  if (!items || items.length === 0) return <div style={{color:'#475569',fontSize:'12px',padding:'12px'}}>暂无数据</div>
-  const keys = Object.keys(items[0] ?? {}).slice(0, 12)
-  return (
-    <div style={{overflowX:'auto',marginTop:'12px'}}>
-      <table style={{width:'100%',borderCollapse:'collapse',fontSize:'11px'}}>
+    <div style={{overflowX:'auto'}}>
+      <table style={{width:'100%',borderCollapse:'collapse',fontSize:'11px',minWidth:'600px'}}>
         <thead>
-          <tr style={{background:'#0d1117',borderBottom:'1px solid #2a3250'}}>
-            {keys.map(k=><th key={k} style={{padding:'7px 10px',color:'#64748b',fontWeight:700,textAlign:'left',whiteSpace:'nowrap'}}>{k}</th>)}
+          <tr style={{background:'#0a0d14'}}>
+            {keys.map(k=><th key={k} style={{padding:'8px 12px',color:'#64748b',fontWeight:700,textAlign:'left',whiteSpace:'nowrap',borderBottom:'1px solid #2a3250'}}>{k}</th>)}
           </tr>
         </thead>
         <tbody>
-          {items.slice(0,50).map((row,i)=>(
+          {items.slice(0,100).map((row,i)=>(
             <tr key={i} style={{borderBottom:'1px solid #1a2035',background:i%2===0?'transparent':'#0d1117'}}>
               {keys.map(k=>(
-                <td key={k} style={{padding:'6px 10px',color:'#94a3b8',maxWidth:'200px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                  {typeof row[k]==='object'?JSON.stringify(row[k]):String(row[k]??'')}
+                <td key={k} style={{padding:'7px 12px',color:'#94a3b8',maxWidth:'220px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                  {row[k]===null||row[k]===undefined ? <span style={{color:'#334155'}}>—</span> : typeof row[k]==='object' ? <span style={{color:'#475569'}}>{JSON.stringify(row[k]).slice(0,60)}</span> : String(row[k])}
                 </td>
               ))}
             </tr>
           ))}
         </tbody>
       </table>
-      {items.length>50&&<div style={{padding:'8px 10px',color:'#475569',fontSize:'11px'}}>仅显示前50条，共 {items.length} 条</div>}
+      {items.length>100&&<div style={{padding:'8px 12px',color:'#475569',fontSize:'11px',borderTop:'1px solid #1e2535'}}>显示前100条，共 {items.length} 条</div>}
     </div>
   )
 }
 
 export default function OmsDataPage() {
-  const [summary,  setSummary]  = useState<Record<string,Summary>>({})
-  const [loading,  setLoading]  = useState(false)
-  const [selected, setSelected] = useState<string|null>(null)
-  const [detail,   setDetail]   = useState<{items:any[];total:number;error?:string}|null>(null)
-  const [detailLoading, setDetailLoading] = useState(false)
-  const [lastSync, setLastSync] = useState<string|null>(null)
+  const [summary,   setSummary]   = useState<Record<string,Summary>>({})
+  const [scanning,  setScanning]  = useState(false)
+  const [scanErr,   setScanErr]   = useState('')
+  const [lastScan,  setLastScan]  = useState<string|null>(null)
+  const [selected,  setSelected]  = useState<string|null>(null)
+  const [detail,    setDetail]    = useState<{items:any[];total:number;error?:string}|null>(null)
+  const [loadingDetail, setLoadingDetail] = useState(false)
 
-  const loadSummary = async () => {
-    setLoading(true)
+  const scan = async () => {
+    setScanning(true); setScanErr('')
     try {
       const res  = await fetch('/api/lingxing/data?type=all')
       const data = await res.json()
-      if (data.summary) { setSummary(data.summary); setLastSync(data.timestamp) }
-    } catch {}
-    setLoading(false)
+      if(data.error) { setScanErr(data.error); return }
+      setSummary(data.summary ?? {})
+      setLastScan(new Date().toLocaleString('zh-CN'))
+    } catch(e:any) { setScanErr(e.message) }
+    setScanning(false)
   }
 
   const loadDetail = async (type: string) => {
-    setSelected(type)
-    setDetailLoading(true)
-    setDetail(null)
+    setSelected(type); setLoadingDetail(true); setDetail(null)
     try {
       const res  = await fetch(`/api/lingxing/data?type=${type}`)
       const data = await res.json()
-      setDetail({ items: data.items ?? [], total: data.total ?? 0, error: data.error })
-    } catch(e:any) { setDetail({ items:[], total:0, error:e.message }) }
-    setDetailLoading(false)
+      setDetail({items: data.items ?? [], total: data.total ?? 0, error: data.error})
+    } catch(e:any) { setDetail({items:[],total:0,error:e.message}) }
+    setLoadingDetail(false)
   }
 
-  useEffect(() => { loadSummary() }, [])
-
-  const selectedMeta = DATA_TYPES.find(d=>d.key===selected)
+  const selMeta = DATA_TYPES.find(d=>d.key===selected)
 
   return (
     <div style={{flex:1,overflowY:'auto',background:'#0d1117'}}>
-      <div style={{maxWidth:'1280px',margin:'0 auto',padding:'28px 24px'}}>
+      <div style={{maxWidth:'1200px',margin:'0 auto',padding:'28px 24px'}}>
 
         {/* Header */}
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'28px'}}>
           <div>
             <h1 style={{fontSize:'20px',fontWeight:800,color:'#f1f5f9'}}>领星 OMS 数据总览</h1>
             <p style={{fontSize:'12px',color:'#475569',marginTop:'4px'}}>
-              {lastSync ? `上次扫描：${new Date(lastSync).toLocaleString('zh-CN')}` : '点击「扫描所有数据」获取最新数据量'}
+              {lastScan ? `上次扫描：${lastScan}` : '点击「扫描」获取各类数据条数'}
             </p>
           </div>
           <div style={{display:'flex',gap:'10px'}}>
-            <Link href="/wms/dashboard" style={{padding:'8px 16px',borderRadius:'7px',border:'1px solid #2a3250',color:'#64748b',textDecoration:'none',fontSize:'12px'}}>← 首页</Link>
-            <button onClick={loadSummary} disabled={loading} style={{padding:'8px 18px',borderRadius:'7px',background:'#3b82f6',border:'none',color:'white',fontWeight:700,fontSize:'13px',cursor:loading?'not-allowed':'pointer',opacity:loading?0.6:1}}>
-              {loading ? '⟳ 扫描中...' : '⟳ 扫描所有数据'}
+            <Link href="/wms/sync" style={{padding:'8px 16px',borderRadius:'7px',border:'1px solid #2a3250',color:'#64748b',textDecoration:'none',fontSize:'12px'}}>⟳ 数据同步</Link>
+            <button onClick={scan} disabled={scanning} style={{padding:'8px 20px',borderRadius:'7px',background:scanning?'#1e3a5f':'#3b82f6',border:'none',color:'white',fontWeight:700,fontSize:'13px',cursor:scanning?'not-allowed':'pointer',boxShadow:scanning?'none':'0 0 12px #3b82f644',transition:'all 0.2s'}}>
+              {scanning ? '⟳ 扫描中...' : '⟳ 扫描所有数据'}
             </button>
           </div>
         </div>
 
-        {/* Summary Grid */}
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:'12px',marginBottom:'28px'}}>
-          {DATA_TYPES.map(dt => {
+        {scanErr && (
+          <div style={{marginBottom:'16px',padding:'12px 16px',background:'#ef444415',border:'1px solid #ef444433',borderRadius:'8px',color:'#ef4444',fontSize:'13px'}}>❌ {scanErr}</div>
+        )}
+
+        {/* Cards */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:'12px',marginBottom:'24px'}}>
+          {DATA_TYPES.map(dt=>{
             const s = summary[dt.key]
-            const isSelected = selected === dt.key
+            const isSelected = selected===dt.key
             return (
-              <div key={dt.key} onClick={()=>loadDetail(dt.key)} style={{background:isSelected?`${dt.color}15`:'#161b26',border:`1px solid ${isSelected?dt.color+'66':'#2a3250'}`,borderRadius:'10px',padding:'16px',cursor:'pointer',transition:'all 0.15s'}}
-                onMouseEnter={e=>{if(!isSelected)e.currentTarget.style.borderColor=dt.color+'44'}}
-                onMouseLeave={e=>{if(!isSelected)e.currentTarget.style.borderColor='#2a3250'}}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'8px'}}>
-                  <div style={{fontSize:'20px'}}>{dt.icon}</div>
-                  <div style={{fontSize:'22px',fontWeight:800,color:s?.error?'#ef4444':s?.total!==undefined?dt.color:'#2a3250',lineHeight:1}}>
-                    {loading&&!s ? '…' : s?.error ? '!' : s?.total!==undefined ? s.total : '—'}
-                  </div>
+              <div key={dt.key} onClick={()=>loadDetail(dt.key)}
+                style={{background:isSelected?`${dt.color}18`:'#161b26',border:`1px solid ${isSelected?dt.color+'55':'#2a3250'}`,borderRadius:'10px',padding:'16px',cursor:'pointer',transition:'all 0.15s'}}
+                onMouseEnter={e=>{if(!isSelected)(e.currentTarget as HTMLDivElement).style.borderColor=dt.color+'44'}}
+                onMouseLeave={e=>{if(!isSelected)(e.currentTarget as HTMLDivElement).style.borderColor='#2a3250'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'10px'}}>
+                  <span style={{fontSize:'22px'}}>{dt.icon}</span>
+                  <span style={{fontSize:'24px',fontWeight:800,color:s?.error?'#ef4444':s?.total!==undefined?dt.color:'#2a3250',lineHeight:1}}>
+                    {scanning&&!s ? '…' : s?.error ? '!' : s?.total!==undefined ? s.total : '—'}
+                  </span>
                 </div>
                 <div style={{fontSize:'12px',fontWeight:700,color:'#e2e8f0'}}>{dt.label}</div>
                 <div style={{fontSize:'10px',color:'#475569',marginTop:'2px'}}>{dt.desc}</div>
-                {s?.error && <div style={{fontSize:'10px',color:'#ef4444',marginTop:'4px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.error}</div>}
+                {s?.error && <div style={{fontSize:'10px',color:'#ef4444',marginTop:'4px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={s.error}>{s.error.slice(0,40)}</div>}
               </div>
             )
           })}
         </div>
 
-        {/* Detail Panel */}
+        {/* Detail panel */}
         {selected && (
-          <div style={{background:'#161b26',border:`1px solid ${selectedMeta?.color??'#2a3250'}33`,borderRadius:'12px',overflow:'hidden'}}>
-            <div style={{padding:'16px 20px',borderBottom:'1px solid #1e2535',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-              <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
-                <span style={{fontSize:'20px'}}>{selectedMeta?.icon}</span>
-                <div>
-                  <div style={{fontSize:'14px',fontWeight:700,color:'#f1f5f9'}}>{selectedMeta?.label}</div>
-                  <div style={{fontSize:'11px',color:'#475569'}}>{selectedMeta?.desc}</div>
-                </div>
-                {detail && !detail.error && (
-                  <span style={{padding:'2px 10px',borderRadius:'10px',background:`${selectedMeta?.color}22`,color:selectedMeta?.color,fontSize:'11px',fontWeight:700}}>
-                    共 {detail.total} 条
-                  </span>
-                )}
-              </div>
-              <div style={{display:'flex',gap:'8px'}}>
-                <button onClick={()=>loadDetail(selected)} style={{padding:'6px 14px',borderRadius:'6px',background:'#1e3a5f',border:'1px solid #3b82f644',color:'#3b82f6',cursor:'pointer',fontSize:'11px'}}>↻ 刷新</button>
-                <button onClick={()=>{setSelected(null);setDetail(null)}} style={{background:'none',border:'none',color:'#64748b',cursor:'pointer',fontSize:'18px',lineHeight:1}}>×</button>
+          <div style={{background:'#161b26',border:`1px solid ${selMeta?.color??'#2a3250'}33`,borderRadius:'12px',overflow:'hidden'}}>
+            <div style={{padding:'14px 20px',borderBottom:'1px solid #1e2535',display:'flex',alignItems:'center',gap:'10px'}}>
+              <span style={{fontSize:'20px'}}>{selMeta?.icon}</span>
+              <span style={{fontSize:'14px',fontWeight:700,color:'#f1f5f9'}}>{selMeta?.label}</span>
+              {detail&&!detail.error&&<span style={{padding:'2px 10px',borderRadius:'8px',background:`${selMeta?.color}22`,color:selMeta?.color,fontSize:'11px',fontWeight:700}}>共 {detail.total} 条</span>}
+              <div style={{marginLeft:'auto',display:'flex',gap:'8px'}}>
+                <button onClick={()=>loadDetail(selected)} style={{padding:'5px 12px',borderRadius:'6px',background:'#1e3a5f',border:'1px solid #3b82f633',color:'#3b82f6',cursor:'pointer',fontSize:'11px'}}>↻ 刷新</button>
+                <button onClick={()=>{setSelected(null);setDetail(null)}} style={{background:'none',border:'none',color:'#64748b',cursor:'pointer',fontSize:'18px',lineHeight:1,padding:'0 4px'}}>×</button>
               </div>
             </div>
-            <div style={{padding:'16px 20px'}}>
-              {detailLoading ? (
-                <div style={{padding:'40px',textAlign:'center',color:'#475569'}}>
-                  <div style={{fontSize:'24px',marginBottom:'8px'}}>⟳</div>拉取中，请稍候...
-                </div>
+            <div style={{padding:'0'}}>
+              {loadingDetail ? (
+                <div style={{padding:'40px',textAlign:'center',color:'#475569',fontSize:'13px'}}>⟳ 拉取数据中，请稍候...</div>
               ) : detail?.error ? (
-                <div style={{padding:'20px',background:'#ef444411',border:'1px solid #ef444433',borderRadius:'8px',color:'#ef4444',fontSize:'13px'}}>
-                  ❌ {detail.error}
-                  <div style={{marginTop:'8px',fontSize:'11px',color:'#94a3b8'}}>该接口可能暂不支持或需要额外权限</div>
-                </div>
+                <div style={{padding:'20px',margin:'16px',background:'#ef444411',border:'1px solid #ef444433',borderRadius:'8px',color:'#ef4444',fontSize:'13px'}}>❌ {detail.error}</div>
               ) : detail ? (
-                <>
-                  <div style={{fontSize:'11px',color:'#475569',marginBottom:'4px'}}>以下为原始字段数据，最多显示50条：</div>
-                  <DetailTable items={detail.items} type={selected} />
-                  {detail.items.length > 0 && (
-                    <div style={{marginTop:'12px'}}>
-                      <div style={{fontSize:'11px',color:'#64748b',marginBottom:'6px',fontWeight:700}}>第一条原始数据（JSON）：</div>
-                      <JsonViewer data={detail.items[0]} />
-                    </div>
-                  )}
-                </>
+                <TableView items={detail.items} />
               ) : null}
             </div>
+          </div>
+        )}
+
+        {!lastScan && !scanning && (
+          <div style={{textAlign:'center',padding:'40px',color:'#475569'}}>
+            <div style={{fontSize:'36px',marginBottom:'12px',opacity:0.4}}>🔗</div>
+            <div style={{fontSize:'14px',marginBottom:'8px'}}>点击「扫描所有数据」查看领星OMS中的数据概况</div>
+            <div style={{fontSize:'12px',color:'#334155'}}>或点击上方任意卡片直接查看该类数据</div>
           </div>
         )}
       </div>
