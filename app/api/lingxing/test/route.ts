@@ -5,11 +5,9 @@ import { createHmac } from 'crypto'
 const API_BASE = 'https://api.xlwms.com/openapi'
 
 function makeAuthcode(appKey: string, appSecret: string, reqTime: string, data: Record<string,any>): string {
-  const valuesStr = Object.entries(data)
-    .map(([k,v])=>[k.toLowerCase(),v] as [string,any])
-    .sort(([a],[b])=>a.localeCompare(b))
-    .map(([,v])=>String(v)).join('')
-  return createHmac('sha256', appSecret).update(appKey + valuesStr + reqTime).digest('hex')
+  const all = { appKey, ...data, reqTime }
+  const valuesStr = Object.entries(all).map(([k,v])=>[k.toLowerCase(),v] as [string,any]).sort(([a],[b])=>a.localeCompare(b)).map(([,v])=>String(v)).join('')
+  return createHmac('sha256', appSecret).update(valuesStr).digest('hex')
 }
 
 export async function POST(req: NextRequest) {

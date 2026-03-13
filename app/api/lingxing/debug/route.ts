@@ -8,8 +8,10 @@ const API_BASE = 'https://api.xlwms.com/openapi'
 const DEFAULT_TENANT = process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID ?? 'a0000000-0000-0000-0000-000000000001'
 
 function sign(appKey: string, appSecret: string, reqTime: string, data: Record<string,any>): string {
-  const v = Object.entries(data).map(([k,v])=>[k.toLowerCase(),v] as [string,any]).sort(([a],[b])=>a.localeCompare(b)).map(([,v])=>String(v)).join('')
-  return createHmac('sha256',appSecret).update(appKey+v+reqTime).digest('hex')
+  // 全参数（含appKey和reqTime）统一按key小写字典序排序后拼接values
+  const all = { appKey, ...data, reqTime }
+  const v = Object.entries(all).map(([k,v])=>[k.toLowerCase(),v] as [string,any]).sort(([a],[b])=>a.localeCompare(b)).map(([,v])=>String(v)).join('')
+  return createHmac('sha256',appSecret).update(v).digest('hex')
 }
 
 async function probe(appKey: string, appSecret: string, label: string, endpoint: string, params: Record<string,any>={}) {
@@ -70,10 +72,11 @@ export async function GET(_req: NextRequest) {
   const start90 = new Date(Date.now()-90*864e5).toISOString().split('T')[0]
   const results = await Promise.all([
     probe(appKey, appSecret, '仓库列表',     '/v1/warehouse/options',           {}),
-    probe(appKey, appSecret, '入库单',       '/v1/inboundOrder/pageList',       {page:1,pageSize:3}),
-    probe(appKey, appSecret, '小包出库单',   '/v1/outboundOrder/pageList',      {page:1,pageSize:3}),
-    probe(appKey, appSecret, '大货出库单',   '/v1/bigOutboundOrder/pageList',   {page:1,pageSize:3}),
-    probe(appKey, appSecret, '退件单',       '/v1/returnOrder/pageList',        {page:1,pageSize:3}),
+    probe(appKey, appSecret, '入库单',       '/v1/inboundOrder/pageList',       {page:1,pageSize:3,warehouseCode:'LIHO'}),
+    probe(appKey, appSecret, '入库单(无wh)', '/v1/inboundOrder/pageList',       {page:1,pageSize:3}),
+    probe(appKey, appSecret, '小包出库单',   '/v1/outboundOrder/pageList',      {page:1,pageSize:3,warehouseCode:'LIHO'}),
+    probe(appKey, appSecret, '大货出库单',   '/v1/bigOutboundOrder/pageList',   {page:1,pageSize:3,warehouseCode:'LIHO'}),
+    probe(appKey, appSecret, '退件单',       '/v1/returnOrder/pageList',        {page:1,pageSize:3,warehouseCode:'LIHO'}),
     probe(appKey, appSecret, '库存(type=1)', '/v1/integratedInventory/pageOpen',{page:1,pageSize:3,startTime:`${start90} 00:00:00`,endTime:`${today} 23:59:59`,inventoryType:1}),
     probe(appKey, appSecret, '库存(无参)',   '/v1/integratedInventory/pageOpen',{page:1,pageSize:3}),
     probe(appKey, appSecret, '客户列表',     '/v1/customer/pageList',           {page:1,pageSize:3}),

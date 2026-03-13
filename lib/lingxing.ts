@@ -35,15 +35,17 @@ export interface OmsCredential {
 function generateAuthcode(appKey: string, appSecret: string, reqTime: string, data: Record<string, any>): string {
   const { createHmac } = require('crypto') as typeof import('crypto')
 
-  // key转小写，按字典序排序，拼接各value
-  const valuesStr = Object.entries(data)
+  // 正确算法：将 appKey、所有业务参数、reqTime 全部合并后统一按key小写字典序排序，拼接values
+  // 验证：OMS验签工具Step2显示 {"appKey":"...","page":1,"pagesize":10,"reqTime":"..."} 全部参与排序
+  // 这样 reqTime 会根据字母序插入正确位置，而不是固定在末尾
+  const allParams: Record<string, any> = { appKey, ...data, reqTime }
+  const valuesStr = Object.entries(allParams)
     .map(([k, v]) => [k.toLowerCase(), v] as [string, any])
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([, v]) => String(v))
     .join('')
 
-  const strToSign = appKey + valuesStr + reqTime
-  return createHmac('sha256', appSecret).update(strToSign).digest('hex')
+  return createHmac('sha256', appSecret).update(valuesStr).digest('hex')
 }
 
 // ── Core request ─────────────────────────────────────────────
@@ -171,7 +173,7 @@ export async function verifyAndBind(
   try {
     const data = await omsRequest(appKey, appSecret, '/v1/warehouse/options', {})
     const warehouses: any[] = Array.isArray(data) ? data : (data?.list ?? data?.records ?? [])
-    const warehouseIds = warehouses.map((w: any) => String(w.id ?? w.warehouseId ?? w.warehouse_id))
+    const warehouseIds = warehouses.map((w: any) => String(w.whCode ?? w.id ?? w.warehouseId ?? w.warehouse_id ?? ''))
 
     const { error: upsertErr } = await supabase
       .from('lingxing_credentials')

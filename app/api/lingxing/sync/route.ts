@@ -9,8 +9,10 @@ const DEFAULT_TENANT = process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID ?? 'a0000000-00
 
 // ── Auth ─────────────────────────────────────────────────────
 function sign(appKey: string, appSecret: string, reqTime: string, data: Record<string,any>): string {
-  const v = Object.entries(data).map(([k,v])=>[k.toLowerCase(),v] as [string,any]).sort(([a],[b])=>a.localeCompare(b)).map(([,v])=>String(v)).join('')
-  return createHmac('sha256',appSecret).update(appKey+v+reqTime).digest('hex')
+  // 全参数（含appKey和reqTime）统一按key小写字典序排序后拼接values
+  const all = { appKey, ...data, reqTime }
+  const v = Object.entries(all).map(([k,v])=>[k.toLowerCase(),v] as [string,any]).sort(([a],[b])=>a.localeCompare(b)).map(([,v])=>String(v)).join('')
+  return createHmac('sha256',appSecret).update(v).digest('hex')
 }
 
 async function omsPost(appKey: string, appSecret: string, endpoint: string, data: Record<string,any>={}): Promise<any> {
@@ -57,8 +59,9 @@ async function upsertTodo(supabase: any, tenantId: string, todo: {
 }
 
 // ── Sync handlers ─────────────────────────────────────────────
-async function syncInbound(appKey: string, appSecret: string, supabase: any, tenantId: string) {
-  const orders = await fetchPages(appKey, appSecret, '/v1/inboundOrder/pageList', {})
+async function syncInbound(appKey: string, appSecret: string, supabase: any, tenantId: string, warehouseCode?: string) {
+  const params: Record<string,any> = {}; if(warehouseCode) params.warehouseCode = warehouseCode
+  const orders = await fetchPages(appKey, appSecret, '/v1/inboundOrder/pageList', params)
   let created = 0, skipped = 0
   for (const o of orders) {
     // skip already completed/cancelled
@@ -80,8 +83,9 @@ async function syncInbound(appKey: string, appSecret: string, supabase: any, ten
   return { created, skipped }
 }
 
-async function syncOutbound(appKey: string, appSecret: string, supabase: any, tenantId: string) {
-  const orders = await fetchPages(appKey, appSecret, '/v1/outboundOrder/pageList', {})
+async function syncOutbound(appKey: string, appSecret: string, supabase: any, tenantId: string, warehouseCode?: string) {
+  const params: Record<string,any> = {}; if(warehouseCode) params.warehouseCode = warehouseCode
+  const orders = await fetchPages(appKey, appSecret, '/v1/outboundOrder/pageList', params)
   let created = 0, skipped = 0
   for (const o of orders) {
     if ([3,4].includes(o.status)) { skipped++; continue }
@@ -121,8 +125,9 @@ async function syncBigOutbound(appKey: string, appSecret: string, supabase: any,
   return { created, skipped }
 }
 
-async function syncReturns(appKey: string, appSecret: string, supabase: any, tenantId: string) {
-  const orders = await fetchPages(appKey, appSecret, '/v1/returnOrder/pageList', {})
+async function syncReturns(appKey: string, appSecret: string, supabase: any, tenantId: string, warehouseCode?: string) {
+  const params: Record<string,any> = {}; if(warehouseCode) params.warehouseCode = warehouseCode
+  const orders = await fetchPages(appKey, appSecret, '/v1/returnOrder/pageList', params)
   let created = 0, skipped = 0
   for (const o of orders) {
     if ([2,3].includes(o.status)) { skipped++; continue }
@@ -174,13 +179,16 @@ export async function POST(req: NextRequest) {
 
     const supabase = getSupabaseAdminClient()
     const { data: cred } = await supabase
-      .from('lingxing_credentials').select('app_key,app_secret,auth_status')
+      .from('lingxing_credentials').select('app_key,app_secret,auth_status,warehouse_ids')
       .eq('tenant_id', tenantId).single()
     if (!cred || cred.auth_status !== 1)
       return NextResponse.json({ error: '未绑定领星账号，请先在系统设置中绑定' }, { status: 401 })
 
-    const appKey    = decrypt(cred.app_key)
-    const appSecret = decrypt(cred.app_secret)
+    const appKey       = decrypt(cred.app_key)
+    const appSecret   = decrypt(cred.app_secret)
+    // 仓库代码（OMS部分接口必填）
+    const warehouseCode = Array.isArray(cred.warehouse_ids) && cred.warehouse_ids[0] !== 'undefined'
+      ? cred.warehouse_ids[0] : undefined
 
     const run = async (fn: ()=>Promise<{created:number;skipped:number}>, label: string) => {
       try {
@@ -193,10 +201,10 @@ export async function POST(req: NextRequest) {
 
     if (type === 'all') {
       const [inbound, outbound, bigOutbound, returns, inventory] = await Promise.all([
-        run(() => syncInbound(appKey, appSecret, supabase, tenantId),    '入库单'),
-        run(() => syncOutbound(appKey, appSecret, supabase, tenantId),   '小包出库'),
+        run(() => syncInbound(appKey, appSecret, supabase, tenantId, warehouseCode),    '入库单'),
+        run(() => syncOutbound(appKey, appSecret, supabase, tenantId, warehouseCode),   '小包出库'),
         run(() => syncBigOutbound(appKey, appSecret, supabase, tenantId),'大货出库'),
-        run(() => syncReturns(appKey, appSecret, supabase, tenantId),    '退件单'),
+        run(() => syncReturns(appKey, appSecret, supabase, tenantId, warehouseCode),    '退件单'),
         run(() => syncInventory(appKey, appSecret, supabase, tenantId),  '库存'),
       ])
       await supabase.from('lingxing_credentials').update({last_sync_at: new Date().toISOString()}).eq('tenant_id', tenantId)
@@ -205,10 +213,10 @@ export async function POST(req: NextRequest) {
     }
 
     const handlers: Record<string, ()=>Promise<any>> = {
-      inbound:     () => run(()=>syncInbound(appKey,appSecret,supabase,tenantId),'入库单'),
-      outbound:    () => run(()=>syncOutbound(appKey,appSecret,supabase,tenantId),'小包出库'),
-      bigOutbound: () => run(()=>syncBigOutbound(appKey,appSecret,supabase,tenantId),'大货出库'),
-      returns:     () => run(()=>syncReturns(appKey,appSecret,supabase,tenantId),'退件单'),
+      inbound:     () => run(()=>syncInbound(appKey,appSecret,supabase,tenantId,warehouseCode),'入库单'),
+      outbound:    () => run(()=>syncOutbound(appKey,appSecret,supabase,tenantId,warehouseCode),'小包出库'),
+      bigOutbound: () => run(()=>syncBigOutbound(appKey,appSecret,supabase,tenantId,warehouseCode),'大货出库'),
+      returns:     () => run(()=>syncReturns(appKey,appSecret,supabase,tenantId,warehouseCode),'退件单'),
       inventory:   () => run(()=>syncInventory(appKey,appSecret,supabase,tenantId),'库存'),
     }
     if (!handlers[type]) return NextResponse.json({ error: `不支持的同步类型: ${type}` }, { status: 400 })

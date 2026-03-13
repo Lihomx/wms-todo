@@ -12,8 +12,10 @@ const API_BASE    = 'https://api.xlwms.com/openapi'
 const DEFAULT_TENANT = process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID ?? 'a0000000-0000-0000-0000-000000000001'
 
 function sign(appKey: string, appSecret: string, reqTime: string, data: Record<string,any>): string {
-  const v = Object.entries(data).map(([k,v])=>[k.toLowerCase(),v] as [string,any]).sort(([a],[b])=>a.localeCompare(b)).map(([,v])=>String(v)).join('')
-  return createHmac('sha256',appSecret).update(appKey+v+reqTime).digest('hex')
+  // 全参数（含appKey和reqTime）统一按key小写字典序排序后拼接values
+  const all = { appKey, ...data, reqTime }
+  const v = Object.entries(all).map(([k,v])=>[k.toLowerCase(),v] as [string,any]).sort(([a],[b])=>a.localeCompare(b)).map(([,v])=>String(v)).join('')
+  return createHmac('sha256',appSecret).update(v).digest('hex')
 }
 
 async function omsPost(appKey: string, appSecret: string, endpoint: string, data: Record<string,any>={}): Promise<any> {
