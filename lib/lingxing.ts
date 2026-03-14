@@ -38,14 +38,15 @@ function generateAuthcode(appKey: string, appSecret: string, reqTime: string, da
   // 正确算法：将 appKey、所有业务参数、reqTime 全部合并后统一按key小写字典序排序，拼接values
   // 验证：OMS验签工具Step2显示 {"appKey":"...","page":1,"pagesize":10,"reqTime":"..."} 全部参与排序
   // 这样 reqTime 会根据字母序插入正确位置，而不是固定在末尾
-  const allParams: Record<string, any> = { appKey, ...data, reqTime }
-  const valuesStr = Object.entries(allParams)
+  // 正确算法（已与OMS验签工具核对）：
+  // appKey 固定在最前，业务参数 key 转小写字典序排序后拼接 values，reqTime 固定在最后
+  const valuesStr = Object.entries(data)
     .map(([k, v]) => [k.toLowerCase(), v] as [string, any])
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([, v]) => String(v))
     .join('')
 
-  return createHmac('sha256', appSecret).update(valuesStr).digest('hex')
+  return createHmac('sha256', appSecret).update(appKey + valuesStr + reqTime).digest('hex')
 }
 
 // ── Core request ─────────────────────────────────────────────
