@@ -54,8 +54,10 @@ export default function OmsDataPage() {
     setScanning(true); setScanErr('')
     try {
       const res  = await fetch('/api/lingxing/data?type=all')
-      const data = await res.json()
-      if(data.error) { setScanErr(data.error); return }
+      const text = await res.text()
+      let data: any = {}
+      try { data = JSON.parse(text) } catch { setScanErr(`服务器返回非JSON内容 (HTTP ${res.status}): ${text.slice(0,200)}`); setScanning(false); return }
+      if(data.error) { setScanErr(data.error); setScanning(false); return }
       setSummary(data.summary ?? {})
       setLastScan(new Date().toLocaleString('zh-CN'))
     } catch(e:any) { setScanErr(e.message) }
@@ -66,7 +68,9 @@ export default function OmsDataPage() {
     setSelected(type); setLoadingDetail(true); setDetail(null)
     try {
       const res  = await fetch(`/api/lingxing/data?type=${type}`)
-      const data = await res.json()
+      const text = await res.text()
+      let data: any = {}
+      try { data = JSON.parse(text) } catch { setDetail({items:[],total:0,error:`服务器错误 (HTTP ${res.status}): ${text.slice(0,300)}`}); setLoadingDetail(false); return }
       setDetail({items: data.items ?? [], total: data.total ?? 0, error: data.error})
     } catch(e:any) { setDetail({items:[],total:0,error:e.message}) }
     setLoadingDetail(false)
