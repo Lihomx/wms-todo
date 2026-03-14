@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * GET /api/lingxing/debug
