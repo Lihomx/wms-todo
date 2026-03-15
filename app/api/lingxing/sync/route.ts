@@ -40,7 +40,8 @@ async function fetchPages(appKey:string, appSecret:string, endpoint:string, para
 async function upsertTodo(supabase:any, tenantId:string, todo:{title:string;category:string;priority:number;status?:number;due_date?:string|null;description?:string|null;lingxing_order_no:string;source:string}): Promise<'created'|'skipped'> {
   const {data:existing}=await supabase.from('todos').select('id').eq('tenant_id',tenantId).eq('lingxing_order_no',todo.lingxing_order_no).maybeSingle()
   if(existing) return 'skipped'
-  await supabase.from('todos').insert({tenant_id:tenantId,status:0,...todo})
+  const {error}=await supabase.from('todos').insert({tenant_id:tenantId,status:todo.status??0,...todo})
+  if(error) throw new Error(`DB insert failed: ${error.message} (code:${error.code})`)
   return 'created'
 }
 
