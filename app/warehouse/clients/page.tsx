@@ -118,8 +118,8 @@ export default function ClientsPage() {
                 {c.last_synced_at && <div style={{fontSize:'11px',color:'#475569',marginTop:'3px'}}>上次同步：{new Date(c.last_synced_at).toLocaleString('zh-CN')}</div>}
               </div>
               <div style={{display:'flex',gap:'7px',flexShrink:0}}>
-                <button onClick={()=>window.open('https://oms.xlwms.com','_blank')} style={{padding:'6px 12px',borderRadius:'6px',border:'1px solid #3b82f633',background:'#1e3a5f',color:'#3b82f6',cursor:'pointer',fontSize:'12px',fontWeight:600,whiteSpace:'nowrap' as const}}>
-                  🔗 OMS登录
+                <button onClick={()=>window.location.href='/wms/dashboard'} style={{padding:'6px 12px',borderRadius:'6px',border:'1px solid #3b82f633',background:'#1e3a5f',color:'#3b82f6',cursor:'pointer',fontSize:'12px',fontWeight:600,whiteSpace:'nowrap' as const}}>
+                  🔗 进入OMS客户端
                 </button>
                 {c.auth_status===1 && (
                   <button onClick={()=>syncClient(c.id,c.customer_code)} disabled={syncing===c.id} style={{padding:'6px 12px',borderRadius:'6px',border:'1px solid #22c55e33',background:'#14532d22',color:'#22c55e',cursor:syncing===c.id?'not-allowed':'pointer',fontSize:'12px',fontWeight:600}}>

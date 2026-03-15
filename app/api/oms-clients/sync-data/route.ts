@@ -38,8 +38,15 @@ async function upsert(supabase:any, tenantId:string, customerCode:string, todo:{
   description?:string|null;due_date?:string|null
   lingxing_order_no:string;source:string
 }) {
-  const {data:ex}=await supabase.from('todos').select('id').eq('tenant_id',tenantId).eq('lingxing_order_no',todo.lingxing_order_no).maybeSingle()
-  if(ex) return 'skipped'
+  const {data:ex}=await supabase.from('todos').select('id,customer_code').eq('tenant_id',tenantId).eq('lingxing_order_no',todo.lingxing_order_no).maybeSingle()
+  if(ex) {
+    // Update customer_code if missing (fix previously synced todos)
+    if(!ex.customer_code && customerCode) {
+      await supabase.from('todos').update({customer_code:customerCode}).eq('id',ex.id)
+      return 'updated'
+    }
+    return 'skipped'
+  }
   const {error}=await supabase.from('todos').insert({tenant_id:tenantId,customer_code:customerCode,...todo})
   if(error) throw new Error(`Insert failed: ${error.message}`)
   return 'created'
@@ -78,7 +85,7 @@ export async function POST(req: NextRequest) {
           description:`状态：${o.status} | 客户：${o.customerName??code}`,
           due_date:o.expectedDate??null,
         })
-        r==='created'?c++:s++
+        if(r==='created')c++; else if(r==='updated')c++; else s++
       }
       results.inbound = {created:c,skipped:s}
     } catch(e:any) { results.inbound = {created:0,skipped:0,error:e.message} }
@@ -95,7 +102,7 @@ export async function POST(req: NextRequest) {
           lingxing_order_no:no,source:'lingxing_auto',
           description:`平台：${o.salesPlatform??'-'} | 收件人：${o.receiver??'-'}`,
         })
-        r==='created'?c++:s++
+        if(r==='created')c++; else if(r==='updated')c++; else s++
       }
       results.outbound = {created:c,skipped:s}
     } catch(e:any) { results.outbound = {created:0,skipped:0,error:e.message} }
@@ -114,7 +121,7 @@ export async function POST(req: NextRequest) {
           status:o.status===3?2:0,lingxing_order_no:no,source:'lingxing_auto',
           description:`${typeLabel} | ${statusLabel}`,
         })
-        r==='created'?c++:s++
+        if(r==='created')c++; else if(r==='updated')c++; else s++
       }
       results.returns = {created:c,skipped:s}
     } catch(e:any) { results.returns = {created:0,skipped:0,error:e.message} }
@@ -134,7 +141,7 @@ export async function POST(req: NextRequest) {
           lingxing_order_no:`inv_${code}_${sku}`,source:'lingxing_auto',
           description:`SKU:${sku} | 可用:${qty}`,
         })
-        r==='created'?c++:s++
+        if(r==='created')c++; else if(r==='updated')c++; else s++
       }
       results.inventory = {created:c,skipped:s}
     } catch(e:any) { results.inventory = {created:0,skipped:0,error:e.message} }
@@ -145,7 +152,7 @@ export async function POST(req: NextRequest) {
     const total = Object.values(results).reduce((s,r)=>s+r.created,0)
     return NextResponse.json({
       success: true,
-      message: `${client.customer_name} 同步完成，新建 ${total} 条待办`,
+      message: `${client.customer_name} 同步完成，新建/更新 ${total} 条待办`,
       results
     })
   } catch(err:any) {

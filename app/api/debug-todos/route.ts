@@ -1,36 +1,45 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdminClient } from '@/lib/supabase-server'
+import { decrypt } from '@/lib/crypto'
 
 export async function GET() {
   const supabase = getSupabaseAdminClient()
-  const DEFAULT_TENANT = process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID ?? 'a0000000-0000-0000-0000-000000000001'
 
-  // 1. Try a direct insert and see the error
-  const testInsert = await supabase.from('todos').insert({
-    tenant_id:         DEFAULT_TENANT,
-    title:             'TEST_DEBUG_ENTRY',
-    category:          '退货处理',
-    priority:          1,
-    status:            0,
-    source:            'lingxing_auto',
-    lingxing_order_no: 'test_debug_001',
-    description:       'debug test',
-  }).select()
+  // Check oms_clients columns and data
+  const { data: clients, error: ce } = await supabase
+    .from('oms_clients')
+    .select('id,customer_code,customer_name,auth_status,app_key,app_secret,last_synced_at')
+    .limit(5)
 
-  // 2. Count after insert attempt
-  const { count: totalAfter } = await supabase.from('todos').select('*', { count: 'exact', head: true })
+  // Check todos without customer_code
+  const { count: noClient } = await supabase
+    .from('todos')
+    .select('*', { count: 'exact', head: true })
+    .is('customer_code', null)
 
-  // 3. Check if lingxing_credentials has data
-  const { data: creds } = await supabase.from('lingxing_credentials').select('tenant_id,auth_status,warehouse_ids').limit(5)
+  // Check todos with customer_code
+  const { data: withClient } = await supabase
+    .from('todos')
+    .select('customer_code')
+    .not('customer_code', 'is', null)
+    .limit(5)
 
-  // 4. Check tenants table
-  const { data: tenants } = await supabase.from('tenants').select('id,name').limit(5)
+  // Try decrypt if app_key exists
+  let decryptTest = null
+  if (clients?.[0]?.app_key) {
+    try {
+      const dk = decrypt(clients[0].app_key)
+      decryptTest = { len: dk.length, prefix: dk.slice(0,6)+'...' }
+    } catch(e: any) {
+      decryptTest = { error: e.message }
+    }
+  }
 
   return NextResponse.json({
-    DEFAULT_TENANT,
-    insertResult: { data: testInsert.data, error: testInsert.error?.message, status: testInsert.status },
-    totalAfterInsert: totalAfter,
-    credentials: creds,
-    tenants,
+    oms_clients: clients ?? [],
+    oms_clients_error: ce?.message,
+    todos_without_customer_code: noClient,
+    todos_with_client_sample: withClient,
+    decrypt_test: decryptTest,
   })
 }
