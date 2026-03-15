@@ -120,7 +120,7 @@ export default function NewTodoPage() {
               <label style={lbl}>业务分类 *</label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 {CATS.map(c=>(
-                  <div key={c} onClick={()=>handleCatChange(c)} style={{ padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', border: `1px solid ${category===c?'#3b82f6':'#e2e8f0'}`, background: category===c?'#1e3a5f':'#ffffff', transition: 'all 0.15s' }}>
+                  <div key={c} onClick={()=>handleCatChange(c)} style={{ padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', border: `1px solid ${category===c?'#3b82f6':'#e2e8f0'}`, background: category===c?'#eff6ff':'#ffffff', transition: 'all 0.15s' }}>
                     <div style={{ fontSize: '16px' }}>{CAT_ICONS[c]}</div>
                     <div style={{ fontSize: '12px', fontWeight: 700, color: category===c?'#93c5fd':'#94a3b8', marginTop: '4px' }}>{c}</div>
                     <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>{CAT_DESC[c]}</div>
@@ -161,14 +161,14 @@ export default function NewTodoPage() {
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <input value={newCheck} onChange={e=>setNewCheck(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addCheck()} placeholder="新增检查项..." style={{ ...inp, flex: 1, fontSize: '12px', padding: '8px 11px' }} />
-            <button onClick={addCheck} style={{ padding: '8px 14px', borderRadius: '7px', background: '#1e3a5f', border: '1px solid #3b82f644', color: '#3b82f6', cursor: 'pointer', fontSize: '12px', fontWeight: 700, flexShrink: 0 }}>+ 添加</button>
+            <button onClick={addCheck} style={{ padding: '8px 14px', borderRadius: '7px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#2563eb', cursor: 'pointer', fontSize: '12px', fontWeight: 700, flexShrink: 0 }}>+ 添加</button>
           </div>
         </div>
 
         {/* Submit */}
         <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
           <Link href="/wms/todos" style={{ padding: '10px 22px', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#64748b', textDecoration: 'none', fontSize: '13px' }}>取消</Link>
-          <button onClick={submit} disabled={saving} style={{ padding: '10px 28px', borderRadius: '8px', background: saving?'#1e3a5f':'#3b82f6', border: 'none', color: 'white', fontWeight: 700, fontSize: '14px', cursor: saving?'not-allowed':'pointer', boxShadow: saving?'none':'0 0 16px #3b82f644' }}>
+          <button onClick={submit} disabled={saving} style={{ padding: '10px 28px', borderRadius: '8px', background: saving?'#e2e8f0':'#2563eb', border: 'none', color: 'white', fontWeight: 700, fontSize: '14px', cursor: saving?'not-allowed':'pointer', boxShadow: 'none' }}>
             {saving ? '创建中...' : '✓ 创建待办'}
           </button>
         </div>

@@ -50,7 +50,7 @@ function EditModal({ todo, onClose, onSaved }: { todo: Todo; onClose: ()=>void; 
     <div style={{ position: 'fixed', inset: 0, background: '#000000bb', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
       <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', width: '500px', maxWidth: '94vw', padding: '28px' }} onClick={e=>e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#f1f5f9' }}>编辑待办</h3>
+          <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>编辑待办</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>
         </div>
         {error && <div style={{ marginBottom: '12px', padding: '8px 12px', background: '#ef444422', border: '1px solid #ef444444', borderRadius: '6px', color: '#ef4444', fontSize: '12px' }}>{error}</div>}
@@ -108,7 +108,7 @@ function AddCheckItem({ todoId, onAdded }: { todoId: string; onAdded: ()=>void }
   return (
     <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
       <input value={val} onChange={e=>setVal(e.target.value)} onKeyDown={e=>e.key==='Enter'&&add()} placeholder="新增检查项..." style={{ ...inp, flex: 1, fontSize: '12px', padding: '7px 10px' }} />
-      <button onClick={add} style={{ padding: '7px 14px', borderRadius: '6px', background: '#1e3a5f', border: '1px solid #3b82f644', color: '#3b82f6', cursor: 'pointer', fontSize: '12px', fontWeight: 700, flexShrink: 0 }}>+ 添加</button>
+      <button onClick={add} style={{ padding: '7px 14px', borderRadius: '6px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#2563eb', cursor: 'pointer', fontSize: '12px', fontWeight: 700, flexShrink: 0 }}>+ 添加</button>
     </div>
   )
 }
@@ -164,7 +164,7 @@ function TodosContent() {
     const keys = catF ? [catF] : CATS
     keys.forEach(k => {
       const items = filtered.filter(t=>t.category===k)
-      if (items.length > 0 || !catF) grouped.push({ key: k, label: `${CAT_ICONS[k]||'📁'} ${k}`, color: '#3b82f6', items })
+      if (items.length > 0 || !catF) grouped.push({ key: k, label: `${CAT_ICONS[k]||'📁'} ${k}`, color: '#2563eb', items })
     })
     const others = filtered.filter(t=>!CATS.includes(t.category))
     if (others.length > 0) grouped.push({ key: 'other', label: '📁 其他分类', color: '#64748b', items: others })
@@ -220,10 +220,10 @@ function TodosContent() {
     <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
       {/* ── Left Panel ── */}
-      <div style={{ width: '400px', flexShrink: 0, borderRight: '1px solid #1e2535', display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
+      <div style={{ width: '400px', flexShrink: 0, borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
 
         {/* Toolbar */}
-        <div style={{ padding: '12px 14px', borderBottom: '1px solid #1e2535', display: 'flex', flexDirection: 'column', gap: '9px' }}>
+        <div style={{ padding: '12px 14px', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '9px' }}>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <div style={{ flex: 1, position: 'relative' }}>
               <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#475569', fontSize: '13px' }}>🔍</span>
@@ -264,14 +264,14 @@ function TodosContent() {
             <div style={{ padding: '40px', textAlign: 'center', color: '#475569' }}>
               <div style={{ fontSize: '28px', marginBottom: '10px' }}>📭</div>
               <div style={{ fontSize: '13px', marginBottom: '12px' }}>暂无匹配待办</div>
-              <Link href="/wms/todos/new" style={{ fontSize: '12px', color: '#3b82f6', textDecoration: 'none' }}>+ 新建待办</Link>
+              <Link href="/wms/todos/new" style={{ fontSize: '12px', color: '#2563eb', textDecoration: 'none' }}>+ 新建待办</Link>
             </div>
           ) : grouped.map(g => (
             <div key={g.key}>
               {/* Group Header */}
               {grouped.length > 1 && (
-                <div style={{ padding: '8px 14px 6px', display: 'flex', alignItems: 'center', gap: '8px', position: 'sticky', top: 0, background: '#f8fafc', zIndex: 1, borderBottom: '1px solid #1e2535' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8' }}>{g.label}</span>
+                <div style={{ padding: '8px 14px 6px', display: 'flex', alignItems: 'center', gap: '8px', position: 'sticky', top: 0, background: '#f8fafc', zIndex: 1, borderBottom: '1px solid #e2e8f0' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>{g.label}</span>
                   <span style={{ fontSize: '10px', background: `${g.color}22`, color: g.color, padding: '1px 7px', borderRadius: '8px', fontWeight: 700 }}>{g.items.length}</span>
                 </div>
               )}
@@ -284,8 +284,8 @@ function TodosContent() {
                 const isOver   = todo.due_date && todo.due_date < today
                 const isActive = selected?.id === todo.id
                 return (
-                  <div key={todo.id} onClick={() => selectTodo(todo)} style={{ padding: '11px 14px', cursor: 'pointer', borderBottom: '1px solid #1a2035', borderLeft: `3px solid ${isActive ? pri.color : 'transparent'}`, background: isActive ? '#ffffff' : 'transparent', opacity: done ? 0.6 : 1, transition: 'background 0.1s' }}
-                    onMouseEnter={e=>{ if(!isActive) e.currentTarget.style.background='#0f1520' }}
+                  <div key={todo.id} onClick={() => selectTodo(todo)} style={{ padding: '11px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', borderLeft: `3px solid ${isActive ? pri.color : 'transparent'}`, background: isActive ? '#ffffff' : 'transparent', opacity: done ? 0.6 : 1, transition: 'background 0.1s' }}
+                    onMouseEnter={e=>{ if(!isActive) e.currentTarget.style.background='#f1f5f9' }}
                     onMouseLeave={e=>{ if(!isActive) e.currentTarget.style.background='transparent' }}>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                       {/* Circle status button */}
@@ -293,7 +293,7 @@ function TodosContent() {
                         {done && '✓'}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: done?'line-through':'none', color: done?'#475569':'#e2e8f0' }}>{todo.title}</div>
+                        <div style={{ fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: done?'line-through':'none', color: done?'#94a3b8':'#0f172a' }}>{todo.title}</div>
                         <div style={{ display: 'flex', gap: '5px', marginTop: '4px', alignItems: 'center', flexWrap: 'wrap' as const }}>
                           <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '3px', background: `${pri.color}18`, color: pri.color, fontWeight: 700 }}>{pri.label}</span>
                           <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '3px', background: `${sta.color}18`, color: sta.color }}>{sta.label}</span>
@@ -319,11 +319,11 @@ function TodosContent() {
       </div>
 
       {/* ── Right Detail Panel ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#0b0f1a' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f8fafc' }}>
         {selected ? (
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {/* Detail Header */}
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #1e2535', background: '#f8fafc' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap' as const }}>
@@ -331,9 +331,9 @@ function TodosContent() {
                     <span style={{ fontSize: '11px', padding: '2px 9px', borderRadius: '4px', background: `${getSta(selected.status).color}18`, color: getSta(selected.status).color }}>{getSta(selected.status).label}</span>
                     <span style={{ fontSize: '11px', color: '#475569' }}>{CAT_ICONS[selected.category]||'📁'} {selected.category}</span>
                     {selected.source==='lingxing_auto' && <span style={{ fontSize: '11px', color: '#06b6d4', background: '#06b6d411', padding: '2px 8px', borderRadius: '4px' }}>🤖 领星同步</span>}
-                    {selected.source==='manual' && <span style={{ fontSize: '11px', color: '#94a3b8', background: '#ffffff08', padding: '2px 8px', borderRadius: '4px' }}>✋ 手工录入</span>}
+                    {selected.source==='manual' && <span style={{ fontSize: '11px', color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px' }}>✋ 手工录入</span>}
                   </div>
-                  <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#f1f5f9', lineHeight: 1.4 }}>{selected.title}</h2>
+                  <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', lineHeight: 1.4 }}>{selected.title}</h2>
                   {selected.due_date && (
                     <div style={{ marginTop: '6px', fontSize: '12px', color: dueCls(selected.due_date) }}>
                       📅 截止 {selected.due_date}{selected.due_date < today ? ' (已逾期)' : selected.due_date === today ? ' (今日到期)' : ''}
@@ -343,18 +343,18 @@ function TodosContent() {
                     <div style={{ marginTop: '4px', fontSize: '11px', color: '#475569' }}>单号：{selected.lingxing_order_no}</div>
                   )}
                   {selected.description && (
-                    <div style={{ marginTop: '10px', padding: '10px 12px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', color: '#94a3b8', lineHeight: 1.6 }}>{selected.description}</div>
+                    <div style={{ marginTop: '10px', padding: '10px 12px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', color: '#64748b', lineHeight: 1.6 }}>{selected.description}</div>
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                  <button onClick={()=>setEditing(true)} style={{ padding: '7px 14px', borderRadius: '7px', border: '1px solid #e2e8f0', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '12px' }}>✏️ 编辑</button>
+                  <button onClick={()=>setEditing(true)} style={{ padding: '7px 14px', borderRadius: '7px', border: '1px solid #e2e8f0', background: 'none', color: '#64748b', cursor: 'pointer', fontSize: '12px' }}>✏️ 编辑</button>
                   <button onClick={()=>deleteTodo(selected.id)} style={{ padding: '7px 14px', borderRadius: '7px', border: '1px solid #ef444433', background: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}>🗑</button>
                 </div>
               </div>
             </div>
 
             {/* Status Flow */}
-            <div style={{ padding: '16px 24px', borderBottom: '1px solid #1e2535', display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', gap: '8px', alignItems: 'center' }}>
               <span style={{ fontSize: '11px', color: '#475569', fontWeight: 700, marginRight: '4px' }}>状态流转：</span>
               {[{s:0,l:'待处理',c:'#f97316'},{s:1,l:'进行中',c:'#3b82f6'},{s:2,l:'已完成',c:'#22c55e'},{s:3,l:'已取消',c:'#475569'}].map(({s,l,c})=>(
                 <button key={s} onClick={()=>setStatus(selected.id,s)} style={{ padding: '6px 14px', borderRadius: '6px', border: `1px solid ${selected.status===s?c:c+'33'}`, background: selected.status===s?`${c}22`:'transparent', color: selected.status===s?c:'#64748b', fontSize: '12px', fontWeight: selected.status===s?700:400, cursor: 'pointer' }}>{l}</button>
@@ -376,7 +376,7 @@ function TodosContent() {
                 {selected.checklist_items?.sort((a,b)=>a.sort_order-b.sort_order).map(item=>(
                   <div key={item.id} onClick={()=>toggleCheck(selected.id,item.id,!item.is_done)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', borderRadius: '8px', cursor: 'pointer', background: '#ffffff', border: `1px solid ${item.is_done?'#22c55e33':'#e2e8f0'}`, transition: 'border-color 0.15s' }}>
                     <div style={{ width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0, border: `2px solid ${item.is_done?'#22c55e':'#e2e8f0'}`, background: item.is_done?'#22c55e':'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: 'white' }}>{item.is_done&&'✓'}</div>
-                    <span style={{ fontSize: '13px', color: item.is_done?'#475569':'#e2e8f0', textDecoration: item.is_done?'line-through':'none', flex: 1 }}>{item.content}</span>
+                    <span style={{ fontSize: '13px', color: item.is_done?'#94a3b8':'#0f172a', textDecoration: item.is_done?'line-through':'none', flex: 1 }}>{item.content}</span>
                   </div>
                 ))}
               </div>
@@ -384,7 +384,7 @@ function TodosContent() {
             </div>
 
             {/* Meta */}
-            <div style={{ padding: '0 24px 20px', fontSize: '11px', color: '#334155', display: 'flex', gap: '16px' }}>
+            <div style={{ padding: '0 24px 20px', fontSize: '11px', color: '#94a3b8', display: 'flex', gap: '16px' }}>
               <span>创建：{new Date(selected.created_at).toLocaleString('zh-CN')}</span>
             </div>
           </div>
@@ -392,7 +392,7 @@ function TodosContent() {
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '12px', color: '#475569' }}>
             <div style={{ fontSize: '48px', opacity: 0.3 }}>📋</div>
             <div style={{ fontSize: '14px' }}>从左侧选择待办查看详情</div>
-            <Link href="/wms/todos/new" style={{ fontSize: '13px', color: '#3b82f6', textDecoration: 'none', padding: '8px 16px', border: '1px solid #3b82f644', borderRadius: '7px' }}>+ 新建待办</Link>
+            <Link href="/wms/todos/new" style={{ fontSize: '13px', color: '#2563eb', textDecoration: 'none', padding: '8px 16px', border: '1px solid #bfdbfe', borderRadius: '7px' }}>+ 新建待办</Link>
           </div>
         )}
       </div>
@@ -405,13 +405,13 @@ function TodosContent() {
 export default function TodosPage() {
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div style={{ height: '52px', borderBottom: '1px solid #1e2535', background: '#f8fafc', display: 'flex', alignItems: 'center', padding: '0 20px', gap: '12px', flexShrink: 0 }}>
-        <span style={{ fontSize: '15px', fontWeight: 700, color: '#f1f5f9' }}>待办计划</span>
+      <div style={{ height: '52px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', alignItems: 'center', padding: '0 20px', gap: '12px', flexShrink: 0 }}>
+        <span style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>待办计划</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
           {['入库作业','出库作业','库存管理','退货处理'].map(c=>(
-            <Link key={c} href={`/wms/todos?category=${encodeURIComponent(c)}`} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '5px', background: '#ffffff', border: '1px solid #e2e8f0', color: '#94a3b8', textDecoration: 'none' }}>{CAT_ICONS[c]} {c}</Link>
+            <Link key={c} href={`/wms/todos?category=${encodeURIComponent(c)}`} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '5px', background: '#ffffff', border: '1px solid #e2e8f0', color: '#64748b', textDecoration: 'none' }}>{CAT_ICONS[c]} {c}</Link>
           ))}
-          <Link href="/wms/todos" style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '5px', background: '#ffffff', border: '1px solid #e2e8f0', color: '#94a3b8', textDecoration: 'none' }}>全部</Link>
+          <Link href="/wms/todos" style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '5px', background: '#ffffff', border: '1px solid #e2e8f0', color: '#64748b', textDecoration: 'none' }}>全部</Link>
         </div>
       </div>
       <Suspense fallback={<div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>加载中...</div>}>
