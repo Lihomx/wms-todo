@@ -1,14 +1,12 @@
 export const dynamic = 'force-dynamic'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server'
-import { createHmac } from 'crypto'
+import { generateAuthcodeV2 } from '@/lib/lingxing'
 
 const API_BASE = 'https://api.xlwms.com/openapi'
 
 function makeAuthcode(appKey: string, appSecret: string, reqTime: string, data: Record<string,any>): string {
-  // 正确算法：appKey固定最前，业务参数key转小写字典序排序拼接values，reqTime固定最后
-  const valuesStr = Object.entries(data).map(([k,v])=>[k.toLowerCase(),v] as [string,any]).sort(([a],[b])=>a.localeCompare(b)).map(([,v])=>String(v)).join('')
-  return createHmac('sha256', appSecret).update(appKey + valuesStr + reqTime).digest('hex')
+  return generateAuthcodeV2(appKey, appSecret, reqTime, data)
 }
 
 export async function POST(req: NextRequest) {

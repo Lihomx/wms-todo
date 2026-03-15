@@ -1,60 +1,53 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * 领星 OMS API 封装
+ * 领星 OMS API 封装 (V2协议)
  * Base URL: https://api.xlwms.com/openapi
- * 认证: Header 中带 appKey + appSecret
  * 文档: https://apidoc-oms.xlwms.com
+ *
+ * V2 请求格式：
+ *   POST /endpoint?authcode=xxx
+ *   Body: { appKey, reqTime, data: { ...业务参数 } }
+ *
+ * V2 签名算法：
+ *   1. 业务参数 key 转小写，与 appKey/reqTime 合并
+ *   2. 所有 key 按字典序排序
+ *   3. 拼接 value：appKey/reqTime 不加引号，业务字符串值加双引号，数字不加
+ *   4. authcode = HmacSHA256(appSecret, 拼接串)，hex小写
  */
 
 import { encrypt, decrypt } from './crypto'
 import { getSupabaseAdminClient } from './supabase-server'
+import { createHmac } from 'crypto'
 
 const API_BASE = 'https://api.xlwms.com/openapi'
 
-// ── Credential row ────────────────────────────────────────────
-export interface OmsCredential {
-  tenant_id: string
-  app_key: string
-  app_secret: string
-  auth_status: number
-  last_sync_at?: string
-  warehouse_ids?: string[]
-}
+// ── V2 签名 ───────────────────────────────────────────────────
+export function generateAuthcodeV2(
+  appKey: string,
+  appSecret: string,
+  reqTime: string,
+  data: Record<string, any>
+): string {
+  // data 的 key 转小写合并，appKey/reqTime 保持原key不转小写
+  const params: Record<string, any> = { appKey, reqTime }
+  for (const [k, v] of Object.entries(data)) {
+    params[k.toLowerCase()] = v
+  }
 
-// ── Sign generation ───────────────────────────────────────────
-/**
- * 领星OMS签名算法（已验证）：
- * 1. data 的 key 全部转小写后字典升序排序
- * 2. 拼接字符串 = appKey + 排序后各value依次拼接（不是JSON） + reqTime
- * 3. authcode = HMAC-SHA256(appSecret, 拼接字符串)，hex小写
- *
- * 例：data={page:1,pageSize:10}, appKey=xxx, reqTime=yyy
- * → 排序后 key: page, pagesize
- * → strToSign = xxx + "1" + "10" + yyy
- */
-function generateAuthcode(appKey: string, appSecret: string, reqTime: string, data: Record<string, any>): string {
-  const { createHmac } = require('crypto') as typeof import('crypto')
+  const sorted = Object.entries(params).sort(([a], [b]) => a.localeCompare(b))
 
-  // 正确算法：将 appKey、所有业务参数、reqTime 全部合并后统一按key小写字典序排序，拼接values
-  // 验证：OMS验签工具Step2显示 {"appKey":"...","page":1,"pagesize":10,"reqTime":"..."} 全部参与排序
-  // 这样 reqTime 会根据字母序插入正确位置，而不是固定在末尾
-  // 正确算法（已与OMS验签工具核对）：
-  // appKey 固定在最前，业务参数 key 转小写字典序排序后拼接 values，reqTime 固定在最后
-  const valuesStr = Object.entries(data)
-    .map(([k, v]) => [k.toLowerCase(), v] as [string, any])
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([, v]) => String(v))
+  // appKey 和 reqTime 值不加引号，其他字符串值加双引号，数字直接转字符串
+  const strToSign = sorted
+    .map(([k, v]) => {
+      if (k === 'appKey' || k === 'reqTime') return String(v)
+      return typeof v === 'string' ? `"${v}"` : String(v)
+    })
     .join('')
 
-  return createHmac('sha256', appSecret).update(appKey + valuesStr + reqTime).digest('hex')
+  return createHmac('sha256', appSecret).update(strToSign).digest('hex')
 }
 
-// ── Core request ─────────────────────────────────────────────
-/**
- * 最终请求体结构（已验证）:
- * { appKey, ...业务参数展开到顶层, reqTime, authcode }
- * 注意：data 字段直接展开，不嵌套
- */
+// ── V2 请求 ───────────────────────────────────────────────────
 async function omsRequest(
   appKey: string,
   appSecret: string,
@@ -62,31 +55,30 @@ async function omsRequest(
   data: Record<string, any> = {}
 ): Promise<any> {
   const reqTime  = String(Math.floor(Date.now() / 1000))
-  const authcode = generateAuthcode(appKey, appSecret, reqTime, data)
+  const authcode = generateAuthcodeV2(appKey, appSecret, reqTime, data)
 
-  // authcode 放 URL query params，请求体放业务数据（已验证）
-  const url  = `${API_BASE}${endpoint}?authcode=${authcode}`
-  const body = { appKey, ...data, reqTime }
+  // V2: 业务参数放在 data 字段，不展开到顶层
+  const body = { appKey, reqTime, data }
 
-  const res = await fetch(url, {
+  const res = await fetch(`${API_BASE}${endpoint}?authcode=${authcode}`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify(body),
   })
 
-  if (!res.ok) throw new Error(`OMS HTTP ${res.status}: ${endpoint}`)
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${endpoint}`)
 
   const json = await res.json()
   const code = json.code ?? json.status
 
   if (code !== 200 && code !== 0 && code !== '200' && code !== '0') {
-    throw new Error(`OMS API错误 [${endpoint}]: code=${code} msg=${json.message ?? json.msg ?? '未知'}`)
+    throw new Error(`OMS code=${code} msg=${json.message ?? json.msg ?? ''}`)
   }
 
   return json.data ?? json
 }
 
-// ── Paginated fetch ───────────────────────────────────────────
+// ── 分页拉取所有数据 ──────────────────────────────────────────
 async function fetchAllPages(
   appKey: string,
   appSecret: string,
@@ -95,33 +87,20 @@ async function fetchAllPages(
 ): Promise<any[]> {
   const all: any[] = []
   let page = 1
-  const pageSize = 50 // 保守值，避免超限
-
   while (true) {
-    const data = await omsRequest(appKey, appSecret, endpoint, {
-      ...params,
-      page,
-      pageSize,
-    })
-
-    // OMS 返回结构: { list: [], total: N } 或直接数组
-    const items: any[] = Array.isArray(data)
-      ? data
-      : (data?.list ?? data?.records ?? data?.rows ?? [])
-
+    const data = await omsRequest(appKey, appSecret, endpoint, { ...params, page, pageSize: 50 })
+    const items: any[] = Array.isArray(data) ? data : (data?.list ?? data?.records ?? data?.rows ?? [])
     all.push(...items)
-
     const total = data?.total ?? data?.totalCount ?? null
-    if (items.length < pageSize) break
+    if (items.length < 50) break
     if (total !== null && all.length >= Number(total)) break
     page++
     await new Promise(r => setTimeout(r, 300))
   }
-
   return all
 }
 
-// ── Get decrypted keys for a tenant ──────────────────────────
+// ── 获取租户凭证 ──────────────────────────────────────────────
 async function getTenantKeys(tenantId: string): Promise<{ appKey: string; appSecret: string }> {
   const supabase = getSupabaseAdminClient()
   const { data, error } = await supabase
@@ -129,152 +108,78 @@ async function getTenantKeys(tenantId: string): Promise<{ appKey: string; appSec
     .select('app_key, app_secret, auth_status')
     .eq('tenant_id', tenantId)
     .single()
-
   if (error || !data) throw new Error(`租户 ${tenantId} 未找到凭证`)
-  if (data.auth_status !== 1) throw new Error(`租户 ${tenantId} 凭证未激活 (status=${data.auth_status})`)
-
-  return {
-    appKey: decrypt(data.app_key),
-    appSecret: decrypt(data.app_secret),
-  }
+  if (data.auth_status !== 1) throw new Error(`凭证未激活 (status=${data.auth_status})`)
+  return { appKey: decrypt(data.app_key), appSecret: decrypt(data.app_secret) }
 }
 
-// ── Verify & bind credentials ─────────────────────────────────
+// ── 验证并绑定 ────────────────────────────────────────────────
 export async function verifyAndBind(
   tenantId: string,
   appKey: string,
   appSecret: string
 ): Promise<{ success: boolean; message: string; warehouseCount?: number }> {
-
-  // ── Step 1: 检查 ENCRYPTION_SECRET ───────────────────────────
-  const encSecret = process.env.ENCRYPTION_SECRET
-  if (!encSecret || encSecret.length < 16) {
-    return { success: false, message: '❌ 服务器配置错误：Vercel 环境变量缺少 ENCRYPTION_SECRET（需要32位字符串）' }
+  if (!process.env.ENCRYPTION_SECRET || process.env.ENCRYPTION_SECRET.length < 16) {
+    return { success: false, message: '❌ 服务器配置错误：缺少 ENCRYPTION_SECRET' }
   }
 
-  // ── Step 2: 检查 Supabase 连接 ────────────────────────────────
   const supabase = getSupabaseAdminClient()
-  const { error: dbErr } = await supabase.from('tenants').select('id').limit(1)
-  if (dbErr) {
-    return { success: false, message: `❌ 数据库连接失败：${dbErr.message} — 请检查 Vercel 的 SUPABASE_SERVICE_ROLE_KEY / NEXT_PUBLIC_SUPABASE_URL` }
-  }
 
-  // ── Step 3: 检查 tenants 表里是否有默认租户 ──────────────────
+  // 自动创建默认租户
   const { data: tenant } = await supabase.from('tenants').select('id').eq('id', tenantId).maybeSingle()
   if (!tenant) {
-    // 自动插入默认租户
-    const { error: insertErr } = await supabase.from('tenants').insert({ id: tenantId, name: '默认仓库' })
-    if (insertErr) {
-      return { success: false, message: `❌ 默认租户不存在且创建失败：${insertErr.message} — 请先在 Supabase 执行初始化 SQL` }
-    }
+    await supabase.from('tenants').insert({ id: tenantId, name: '默认仓库' })
   }
 
-  // ── Step 4: 调用 OMS API 验证 AppKey/AppSecret ────────────────
-  let omsError1 = ''
   try {
-    const data = await omsRequest(appKey, appSecret, '/v1/warehouse/options', {})
-    const warehouses: any[] = Array.isArray(data) ? data : (data?.list ?? data?.records ?? [])
-    const warehouseIds = warehouses.map((w: any) => String(w.whCode ?? w.id ?? w.warehouseId ?? w.warehouse_id ?? ''))
+    const rawData = await omsRequest(appKey, appSecret, '/v1/warehouse/options', {})
+    const warehouses: any[] = Array.isArray(rawData) ? rawData : (rawData?.list ?? [])
+    const warehouseIds = warehouses.map((w: any) => String(w.whCode ?? w.id ?? ''))
 
-    const { error: upsertErr } = await supabase
-      .from('lingxing_credentials')
-      .upsert({
-        tenant_id:     tenantId,
-        app_key:       encrypt(appKey),
-        app_secret:    encrypt(appSecret),
-        warehouse_ids: warehouseIds,
-        auth_status:   1,
-        sync_enabled:  true,
-      }, { onConflict: 'tenant_id' })
-
-    if (upsertErr) {
-      return { success: false, message: `❌ 凭证保存失败：${upsertErr.message}` }
-    }
+    await supabase.from('lingxing_credentials').upsert({
+      tenant_id: tenantId, app_key: encrypt(appKey), app_secret: encrypt(appSecret),
+      warehouse_ids: warehouseIds, auth_status: 1, sync_enabled: true,
+    }, { onConflict: 'tenant_id' })
 
     return { success: true, message: `✅ 绑定成功！检测到 ${warehouses.length} 个仓库`, warehouseCount: warehouses.length }
-
-  } catch (err) {
-    omsError1 = err instanceof Error ? err.message : String(err)
-  }
-
-  // ── Step 5: 备用接口再试一次 ──────────────────────────────────
-  try {
-    await omsRequest(appKey, appSecret, '/v1/inboundOrder/pageList', { pageNo: 1, pageSize: 1 })
-
-    const { error: upsertErr } = await supabase
-      .from('lingxing_credentials')
-      .upsert({
-        tenant_id:    tenantId,
-        app_key:      encrypt(appKey),
-        app_secret:   encrypt(appSecret),
-        auth_status:  1,
-        sync_enabled: true,
-      }, { onConflict: 'tenant_id' })
-
-    if (upsertErr) {
-      return { success: false, message: `❌ 凭证保存失败：${upsertErr.message}` }
-    }
-
-    return { success: true, message: '✅ 绑定成功！（仓库接口受限，但 API 验证通过）', warehouseCount: 0 }
-
-  } catch (err) {
-    const omsError2 = err instanceof Error ? err.message : String(err)
-    return {
-      success: false,
-      message: `❌ OMS API 验证失败\n仓库接口：${omsError1}\n入库接口：${omsError2}`,
-    }
+  } catch (err: any) {
+    return { success: false, message: `❌ OMS验证失败: ${err.message}` }
   }
 }
 
-// ── Business data fetchers ────────────────────────────────────
-
-/** 入库单列表 - 待入库 / 待上架 */
-export async function fetchInboundOrders(tenantId: string, status?: number): Promise<any[]> {
+// ── 业务数据接口 ──────────────────────────────────────────────
+export async function fetchInboundOrders(tenantId: string): Promise<any[]> {
   const { appKey, appSecret } = await getTenantKeys(tenantId)
-  const params: Record<string, any> = {}
-  if (status !== undefined) params.status = status
-  return fetchAllPages(appKey, appSecret, '/v1/inboundOrder/pageList', params)
+  return fetchAllPages(appKey, appSecret, '/v1/inboundOrder/pageList', {})
 }
 
-/** 小包出库单（一件代发） */
-export async function fetchOutboundOrders(tenantId: string, status?: number): Promise<any[]> {
+export async function fetchOutboundOrders(tenantId: string): Promise<any[]> {
   const { appKey, appSecret } = await getTenantKeys(tenantId)
-  const params: Record<string, any> = {}
-  if (status !== undefined) params.status = status
-  return fetchAllPages(appKey, appSecret, '/v1/outboundOrder/pageList', params)
+  return fetchAllPages(appKey, appSecret, '/v1/outboundOrder/pageList', {})
 }
 
-/** 大货出库单（FBA备货） */
-export async function fetchBigOutboundOrders(tenantId: string, status?: number): Promise<any[]> {
+export async function fetchBigOutboundOrders(tenantId: string): Promise<any[]> {
   const { appKey, appSecret } = await getTenantKeys(tenantId)
-  const params: Record<string, any> = {}
-  if (status !== undefined) params.status = status
-  return fetchAllPages(appKey, appSecret, '/v1/bigOutboundOrder/pageList', params)
+  return fetchAllPages(appKey, appSecret, '/v1/bigOutboundOrder/pageList', {})
 }
 
-/** 综合库存 */
+export async function fetchReturnOrders(tenantId: string): Promise<any[]> {
+  const { appKey, appSecret } = await getTenantKeys(tenantId)
+  return fetchAllPages(appKey, appSecret, '/v1/returnOrder/pageList', {})
+}
+
 export async function fetchInventory(tenantId: string): Promise<any[]> {
   const { appKey, appSecret } = await getTenantKeys(tenantId)
-  // requires time range - last 30 days
-  const endTime   = new Date().toISOString().split('T')[0] + ' 23:59:59'
-  const startTime = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] + ' 00:00:00'
+  const today = new Date().toISOString().split('T')[0]
+  const start = new Date(Date.now() - 90 * 864e5).toISOString().split('T')[0]
   return fetchAllPages(appKey, appSecret, '/v1/integratedInventory/pageOpen', {
-    startTime,
-    endTime,
-    inventoryType: 1, // 1=产品库存(一件代发用)
+    inventoryType: 1,
+    startTime: `${start} 00:00:00`,
+    endTime:   `${today} 23:59:59`,
   })
 }
 
-/** 退件单列表 */
-export async function fetchReturnOrders(tenantId: string, status?: number): Promise<any[]> {
-  const { appKey, appSecret } = await getTenantKeys(tenantId)
-  const params: Record<string, any> = {}
-  if (status !== undefined) params.status = status
-  return fetchAllPages(appKey, appSecret, '/v1/returnOrder/pageList', params)
-}
-
-/** 仓库列表 */
 export async function fetchWarehouses(appKey: string, appSecret: string): Promise<any[]> {
   const data = await omsRequest(appKey, appSecret, '/v1/warehouse/options', {})
-  return Array.isArray(data) ? data : (data?.list ?? data?.records ?? [])
+  return Array.isArray(data) ? data : (data?.list ?? [])
 }
