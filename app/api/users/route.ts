@@ -12,7 +12,13 @@ export async function GET() {
     .select('id,display_name,email,role,language,is_active,created_at')
     .eq('tenant_id', DEFAULT_TENANT)
     .order('created_at', { ascending: false })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // Table may not exist yet - return empty gracefully
+    if (error.code === '42P01' || error.message.includes('does not exist')) {
+      return NextResponse.json({ users: [] })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ users: data ?? [] })
 }
 

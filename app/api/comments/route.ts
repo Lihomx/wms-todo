@@ -16,7 +16,12 @@ export async function GET(req: NextRequest) {
     .eq('todo_id', todoId)
     .order('created_at', { ascending: true })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    if (error.code === '42P01' || error.message.includes('does not exist')) {
+      return NextResponse.json({ comments: [] })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ comments: data ?? [] })
 }
 
