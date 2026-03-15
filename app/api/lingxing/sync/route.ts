@@ -12,7 +12,7 @@ async function omsPost(appKey: string, appSecret: string, endpoint: string, data
   const authcode = generateAuthcodeV2(appKey, appSecret, reqTime, data)
   const res = await fetch(`${API_BASE}${endpoint}?authcode=${authcode}`, {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ appKey, reqTime, authcode, data }),
+    body: JSON.stringify({ appKey, ...data, reqTime }),
   })
   if(!res.ok) throw new Error(`HTTP ${res.status}`)
   const json = await res.json()
