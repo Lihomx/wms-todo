@@ -51,8 +51,8 @@ export default function WmsLayout({ children }: { children: React.ReactNode }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#1e3a5f', border: '1px solid #2563eb44', borderRadius: '10px', padding: '8px 12px' }}>
             <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'linear-gradient(135deg,#3b82f6,#06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700, color: 'white', flexShrink: 0 }}>仓</div>
             <div>
-              <div style={{ fontSize: '13px', fontWeight: 700 }}>海外仓 WMS</div>
-              <div style={{ fontSize: '10px', color: '#64748b' }}>待办管理系统</div>
+              <div style={{ fontSize: '13px', fontWeight: 700 }}>OMS 客户端</div>
+              <div style={{ fontSize: '10px', color: '#64748b' }}>领星OMS数据视图</div>
             </div>
           </div>
         </div>
@@ -84,6 +84,7 @@ export default function WmsLayout({ children }: { children: React.ReactNode }) {
             <div style={{ fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</div>
             <div style={{ fontSize: '11px', color: '#64748b' }}>仓库管理员</div>
           </div>
+          <a href="/warehouse/dashboard" style={{display:'block',textAlign:'center' as const,padding:'6px',borderRadius:'6px',border:'1px solid #2a3250',color:'#475569',textDecoration:'none',fontSize:'11px',marginBottom:'4px'}}>🏭 仓库管理端</a>
           <button onClick={handleLogout} title="退出" style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '16px' }}>↩</button>
         </div>
       </aside>
