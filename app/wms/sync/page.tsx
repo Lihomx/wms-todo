@@ -116,7 +116,9 @@ export default function SyncPage() {
 
         <div style={{marginTop:'20px',padding:'14px 16px',background:'#1e3a5f15',border:'1px solid #3b82f622',borderRadius:'10px',fontSize:'12px',color:'#475569',lineHeight:2}}>
           <span style={{fontWeight:700,color:'#3b82f6'}}>ℹ️ 同步说明：</span>
-          同步不会重复创建（相同单号只建一次）· 已完成待办不会重新激活 · 
+          此页面使用当前绑定凭证同步数据。如需按客户同步，请前往
+          <a href="/warehouse/clients" style={{color:'#3b82f6',marginLeft:'4px'}}>🏭 仓库管理端 → 客户管理</a>，
+          为每个客户绑定AppKey后单独同步。
           Railway Worker 每15分钟自动同步（部署后生效）
         </div>
       </div>
