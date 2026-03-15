@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
         const r=await upsert(supabase,DEFAULT_TENANT,code,{
           title:`【一件代发】${no}`,category:'出库作业',priority:2,status:0,
           lingxing_order_no:no,source:'lingxing_auto',
-          description:`平台：${o.salesPlatform??'-'} | 收件人：${o.receiver??'-'}`,
+          description:`平台：${o.salesPlatform??'-'} | 物流：${o.logisticsChannel??o.logisticsCarrier??'-'} | 收件人：${o.receiver??'-'}`,
         })
         if(r==='created')c++; else if(r==='updated')c++; else s++
       }
