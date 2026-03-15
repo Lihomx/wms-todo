@@ -48,9 +48,10 @@ function WarehouseTodosContent() {
   const postComment = async()=>{
     if(!selected||!newComment.trim()) return
     setTranslating(true)
-    const r=await fetch('/api/comments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({todo_id:selected.id,content:newComment.trim()})})
+    const r=await fetch('/api/comments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({todo_id:selected.id,content:newComment.trim(),author_name:'仓库管理员'})})
     const d=await r.json()
-    if(!d.error){setNewComment('');await loadComments(selected.id)}
+    if(d.error){ alert(d.error) }
+    else { setNewComment(''); await loadComments(selected.id) }
     setTranslating(false)
   }
 
@@ -151,7 +152,7 @@ function WarehouseTodosContent() {
             :comments.map(c=>(
               <div key={c.id} style={{marginBottom:'10px',padding:'12px',background:'#ffffff',borderRadius:'8px',border:'1px solid #e2e8f0'}}>
                 <div style={{fontSize:'11px',color:'#64748b',marginBottom:'5px'}}>
-                  {c.author?.display_name??'用户'} · {new Date(c.created_at).toLocaleString('zh-CN')}
+                  {c.author_name??'用户'} · {new Date(c.created_at).toLocaleString('zh-CN')}
                   <span style={{marginLeft:'6px',padding:'1px 5px',borderRadius:'3px',background:'#e2e8f0',color:'#64748b',fontSize:'10px'}}>{c.original_lang==='zh'?'🇨🇳中文':'🇲🇽Español'}</span>
                 </div>
                 {c.content_zh&&<div style={{fontSize:'13px',color:'#0f172a',marginBottom:c.content_es?'5px':0}}>🇨🇳 {c.content_zh}</div>}
