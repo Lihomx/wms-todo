@@ -15,7 +15,7 @@ interface Todo {
 const CATS = ['入库作业','出库作业','库存管理','退货处理','工单审批','其他']
 const CAT_ICONS: Record<string,string> = { '入库作业':'📦','出库作业':'🚚','库存管理':'📊','退货处理':'↩️','工单审批':'📋','其他':'⚡' }
 const PRI_MAP: Record<number,{label:string;color:string}> = { 1:{label:'紧急',color:'#ef4444'}, 2:{label:'普通',color:'#3b82f6'}, 3:{label:'低优',color:'#64748b'} }
-const STA_MAP: Record<number,{label:string;color:string}> = { 0:{label:'待处理',color:'#f97316'}, 1:{label:'进行中',color:'#3b82f6'}, 2:{label:'已完成',color:'#22c55e'}, 3:{label:'已取消',color:'#475569'} }
+const STA_MAP: Record<number,{label:string;color:string}> = { 0:{label:'待处理',color:'#f97316'}, 1:{label:'进行中',color:'#3b82f6'}, 2:{label:'已完成',color:'#22c55e'}, 3:{label:'已取消',color:'#6b7280'} }
 const getPri = (n:number) => PRI_MAP[n] ?? PRI_MAP[2]
 const getSta = (n:number) => STA_MAP[n] ?? STA_MAP[0]
 const today = new Date().toISOString().split('T')[0]
@@ -48,7 +48,7 @@ function EditModal({ todo, onClose, onSaved }: { todo: Todo; onClose: ()=>void; 
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#000000bb', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
-      <div style={{ background: '#161b26', border: '1px solid #2a3250', borderRadius: '14px', width: '500px', maxWidth: '94vw', padding: '28px' }} onClick={e=>e.stopPropagation()}>
+      <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', width: '500px', maxWidth: '94vw', padding: '28px' }} onClick={e=>e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#f1f5f9' }}>编辑待办</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>
@@ -85,7 +85,7 @@ function EditModal({ todo, onClose, onSaved }: { todo: Todo; onClose: ()=>void; 
           </div>
         </div>
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-          <button onClick={onClose} style={{ padding: '8px 18px', borderRadius: '7px', background: 'none', border: '1px solid #2a3250', color: '#64748b', cursor: 'pointer', fontSize: '13px' }}>取消</button>
+          <button onClick={onClose} style={{ padding: '8px 18px', borderRadius: '7px', background: 'none', border: '1px solid #e2e8f0', color: '#64748b', cursor: 'pointer', fontSize: '13px' }}>取消</button>
           <button onClick={save} disabled={saving} style={{ padding: '8px 18px', borderRadius: '7px', background: '#3b82f6', border: 'none', color: 'white', cursor: saving?'not-allowed':'pointer', fontSize: '13px', fontWeight: 700, opacity: saving?0.6:1 }}>{saving?'保存中...':'保存'}</button>
         </div>
       </div>
@@ -94,7 +94,7 @@ function EditModal({ todo, onClose, onSaved }: { todo: Todo; onClose: ()=>void; 
 }
 
 const lbl: React.CSSProperties = { display: 'block', fontSize: '11px', fontWeight: 600, color: '#64748b', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }
-const inp: React.CSSProperties = { width: '100%', background: '#0d1117', border: '1px solid #2a3250', borderRadius: '7px', padding: '9px 12px', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }
+const inp: React.CSSProperties = { width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '7px', padding: '9px 12px', color: '#0f172a', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }
 
 function AddCheckItem({ todoId, onAdded }: { todoId: string; onAdded: ()=>void }) {
   const [val, setVal] = useState('')
@@ -220,7 +220,7 @@ function TodosContent() {
     <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
       {/* ── Left Panel ── */}
-      <div style={{ width: '400px', flexShrink: 0, borderRight: '1px solid #1e2535', display: 'flex', flexDirection: 'column', background: '#0d1117' }}>
+      <div style={{ width: '400px', flexShrink: 0, borderRight: '1px solid #1e2535', display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
 
         {/* Toolbar */}
         <div style={{ padding: '12px 14px', borderBottom: '1px solid #1e2535', display: 'flex', flexDirection: 'column', gap: '9px' }}>
@@ -270,7 +270,7 @@ function TodosContent() {
             <div key={g.key}>
               {/* Group Header */}
               {grouped.length > 1 && (
-                <div style={{ padding: '8px 14px 6px', display: 'flex', alignItems: 'center', gap: '8px', position: 'sticky', top: 0, background: '#0d1117', zIndex: 1, borderBottom: '1px solid #1e2535' }}>
+                <div style={{ padding: '8px 14px 6px', display: 'flex', alignItems: 'center', gap: '8px', position: 'sticky', top: 0, background: '#f8fafc', zIndex: 1, borderBottom: '1px solid #1e2535' }}>
                   <span style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8' }}>{g.label}</span>
                   <span style={{ fontSize: '10px', background: `${g.color}22`, color: g.color, padding: '1px 7px', borderRadius: '8px', fontWeight: 700 }}>{g.items.length}</span>
                 </div>
@@ -284,7 +284,7 @@ function TodosContent() {
                 const isOver   = todo.due_date && todo.due_date < today
                 const isActive = selected?.id === todo.id
                 return (
-                  <div key={todo.id} onClick={() => selectTodo(todo)} style={{ padding: '11px 14px', cursor: 'pointer', borderBottom: '1px solid #1a2035', borderLeft: `3px solid ${isActive ? pri.color : 'transparent'}`, background: isActive ? '#161b26' : 'transparent', opacity: done ? 0.6 : 1, transition: 'background 0.1s' }}
+                  <div key={todo.id} onClick={() => selectTodo(todo)} style={{ padding: '11px 14px', cursor: 'pointer', borderBottom: '1px solid #1a2035', borderLeft: `3px solid ${isActive ? pri.color : 'transparent'}`, background: isActive ? '#ffffff' : 'transparent', opacity: done ? 0.6 : 1, transition: 'background 0.1s' }}
                     onMouseEnter={e=>{ if(!isActive) e.currentTarget.style.background='#0f1520' }}
                     onMouseLeave={e=>{ if(!isActive) e.currentTarget.style.background='transparent' }}>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
@@ -302,7 +302,7 @@ function TodosContent() {
                         </div>
                         {chkTotal > 0 && (
                           <div style={{ marginTop: '5px' }}>
-                            <div style={{ height: '2px', background: '#1e2535', borderRadius: '1px' }}>
+                            <div style={{ height: '2px', background: '#f1f5f9', borderRadius: '1px' }}>
                               <div style={{ height: '100%', borderRadius: '1px', width: `${chkDone/chkTotal*100}%`, background: done?'#22c55e':'#3b82f6' }} />
                             </div>
                             <span style={{ fontSize: '9px', color: '#475569' }}>{chkDone}/{chkTotal}</span>
@@ -323,7 +323,7 @@ function TodosContent() {
         {selected ? (
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {/* Detail Header */}
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #1e2535', background: '#0d1117' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #1e2535', background: '#f8fafc' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap' as const }}>
@@ -343,11 +343,11 @@ function TodosContent() {
                     <div style={{ marginTop: '4px', fontSize: '11px', color: '#475569' }}>单号：{selected.lingxing_order_no}</div>
                   )}
                   {selected.description && (
-                    <div style={{ marginTop: '10px', padding: '10px 12px', background: '#161b26', border: '1px solid #2a3250', borderRadius: '8px', fontSize: '13px', color: '#94a3b8', lineHeight: 1.6 }}>{selected.description}</div>
+                    <div style={{ marginTop: '10px', padding: '10px 12px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', color: '#94a3b8', lineHeight: 1.6 }}>{selected.description}</div>
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                  <button onClick={()=>setEditing(true)} style={{ padding: '7px 14px', borderRadius: '7px', border: '1px solid #2a3250', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '12px' }}>✏️ 编辑</button>
+                  <button onClick={()=>setEditing(true)} style={{ padding: '7px 14px', borderRadius: '7px', border: '1px solid #e2e8f0', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '12px' }}>✏️ 编辑</button>
                   <button onClick={()=>deleteTodo(selected.id)} style={{ padding: '7px 14px', borderRadius: '7px', border: '1px solid #ef444433', background: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}>🗑</button>
                 </div>
               </div>
@@ -371,11 +371,11 @@ function TodosContent() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                 {(selected.checklist_items?.length??0)===0 && (
-                  <div style={{ padding: '14px', textAlign: 'center', color: '#475569', fontSize: '12px', border: '1px dashed #2a3250', borderRadius: '8px' }}>暂无检查项，在下方添加</div>
+                  <div style={{ padding: '14px', textAlign: 'center', color: '#475569', fontSize: '12px', border: '1px dashed #e2e8f0', borderRadius: '8px' }}>暂无检查项，在下方添加</div>
                 )}
                 {selected.checklist_items?.sort((a,b)=>a.sort_order-b.sort_order).map(item=>(
-                  <div key={item.id} onClick={()=>toggleCheck(selected.id,item.id,!item.is_done)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', borderRadius: '8px', cursor: 'pointer', background: '#161b26', border: `1px solid ${item.is_done?'#22c55e33':'#2a3250'}`, transition: 'border-color 0.15s' }}>
-                    <div style={{ width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0, border: `2px solid ${item.is_done?'#22c55e':'#2a3250'}`, background: item.is_done?'#22c55e':'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: 'white' }}>{item.is_done&&'✓'}</div>
+                  <div key={item.id} onClick={()=>toggleCheck(selected.id,item.id,!item.is_done)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', borderRadius: '8px', cursor: 'pointer', background: '#ffffff', border: `1px solid ${item.is_done?'#22c55e33':'#e2e8f0'}`, transition: 'border-color 0.15s' }}>
+                    <div style={{ width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0, border: `2px solid ${item.is_done?'#22c55e':'#e2e8f0'}`, background: item.is_done?'#22c55e':'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: 'white' }}>{item.is_done&&'✓'}</div>
                     <span style={{ fontSize: '13px', color: item.is_done?'#475569':'#e2e8f0', textDecoration: item.is_done?'line-through':'none', flex: 1 }}>{item.content}</span>
                   </div>
                 ))}
@@ -405,13 +405,13 @@ function TodosContent() {
 export default function TodosPage() {
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div style={{ height: '52px', borderBottom: '1px solid #1e2535', background: '#0d1117', display: 'flex', alignItems: 'center', padding: '0 20px', gap: '12px', flexShrink: 0 }}>
+      <div style={{ height: '52px', borderBottom: '1px solid #1e2535', background: '#f8fafc', display: 'flex', alignItems: 'center', padding: '0 20px', gap: '12px', flexShrink: 0 }}>
         <span style={{ fontSize: '15px', fontWeight: 700, color: '#f1f5f9' }}>待办计划</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
           {['入库作业','出库作业','库存管理','退货处理'].map(c=>(
-            <Link key={c} href={`/wms/todos?category=${encodeURIComponent(c)}`} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '5px', background: '#161b26', border: '1px solid #2a3250', color: '#94a3b8', textDecoration: 'none' }}>{CAT_ICONS[c]} {c}</Link>
+            <Link key={c} href={`/wms/todos?category=${encodeURIComponent(c)}`} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '5px', background: '#ffffff', border: '1px solid #e2e8f0', color: '#94a3b8', textDecoration: 'none' }}>{CAT_ICONS[c]} {c}</Link>
           ))}
-          <Link href="/wms/todos" style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '5px', background: '#161b26', border: '1px solid #2a3250', color: '#94a3b8', textDecoration: 'none' }}>全部</Link>
+          <Link href="/wms/todos" style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '5px', background: '#ffffff', border: '1px solid #e2e8f0', color: '#94a3b8', textDecoration: 'none' }}>全部</Link>
         </div>
       </div>
       <Suspense fallback={<div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>加载中...</div>}>

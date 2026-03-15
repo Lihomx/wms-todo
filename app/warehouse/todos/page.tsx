@@ -68,14 +68,14 @@ function WarehouseTodosContent() {
   useEffect(()=>{load()},[load])
 
   const clientName=(code:string|null)=>clients.find(c=>c.customer_code===code)?.customer_name??code??'-'
-  const inp:React.CSSProperties={padding:'7px 10px',borderRadius:'6px',background:'#161b26',border:'1px solid #2a3250',color:'#e2e8f0',fontSize:'12px',cursor:'pointer',outline:'none'}
+  const inp:React.CSSProperties={padding:'7px 10px',borderRadius:'6px',background:'#ffffff',border:'1px solid #e2e8f0',color:'#0f172a',fontSize:'12px',cursor:'pointer',outline:'none'}
 
   return (
-    <div style={{flex:1,display:'flex',overflow:'hidden',background:'#0d1117'}}>
+    <div style={{flex:1,display:'flex',overflow:'hidden',background:'#f8fafc'}}>
       {/* Left panel */}
-      <div style={{width:'380px',flexShrink:0,borderRight:'1px solid #2a3250',display:'flex',flexDirection:'column'}}>
-        <div style={{padding:'14px',borderBottom:'1px solid #2a3250',display:'flex',flexDirection:'column' as const,gap:'8px'}}>
-          <div style={{fontSize:'14px',fontWeight:800,color:'#f1f5f9'}}>全部待办 · {todos.length}条</div>
+      <div style={{width:'380px',flexShrink:0,borderRight:'1px solid #e2e8f0',display:'flex',flexDirection:'column'}}>
+        <div style={{padding:'14px',borderBottom:'1px solid #e2e8f0',display:'flex',flexDirection:'column' as const,gap:'8px'}}>
+          <div style={{fontSize:'14px',fontWeight:800,color:'#0f172a'}}>全部待办 · {todos.length}条</div>
           <input value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&load()} placeholder="搜索待办标题..." style={{...inp,width:'100%',boxSizing:'border-box' as const}}/>
           <div style={{display:'flex',gap:'6px'}}>
             <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} style={{...inp,flex:1}}>
@@ -89,17 +89,17 @@ function WarehouseTodosContent() {
           </div>
         </div>
         <div style={{flex:1,overflowY:'auto' as const}}>
-          {loading?<div style={{padding:'20px',textAlign:'center' as const,color:'#475569',fontSize:'13px'}}>加载中...</div>
-          :todos.length===0?<div style={{padding:'20px',textAlign:'center' as const,color:'#475569',fontSize:'13px'}}>暂无待办</div>
+          {loading?<div style={{padding:'20px',textAlign:'center' as const,color:'#6b7280',fontSize:'13px'}}>加载中...</div>
+          :todos.length===0?<div style={{padding:'20px',textAlign:'center' as const,color:'#6b7280',fontSize:'13px'}}>暂无待办</div>
           :todos.map(t=>{
             const assignee=staff.find(s=>s.id===t.assigned_to)
             return (
-              <div key={t.id} onClick={()=>{setSelected(t);loadComments(t.id)}} style={{padding:'11px 14px',borderBottom:'1px solid #1a2035',cursor:'pointer',background:selected?.id===t.id?'#1e2535':'transparent'}}>
+              <div key={t.id} onClick={()=>{setSelected(t);loadComments(t.id)}} style={{padding:'11px 14px',borderBottom:'1px solid #f1f5f9',cursor:'pointer',background:selected?.id===t.id?'#f1f5f9':'transparent'}}>
                 <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'6px',marginBottom:'4px'}}>
-                  <span style={{fontSize:'12px',color:'#e2e8f0',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const,fontWeight:selected?.id===t.id?700:400}}>{t.title}</span>
+                  <span style={{fontSize:'12px',color:'#0f172a',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const,fontWeight:selected?.id===t.id?700:400}}>{t.title}</span>
                   <span style={{padding:'1px 5px',borderRadius:'3px',fontSize:'10px',fontWeight:700,background:`${SC[t.status]}22`,color:SC[t.status],flexShrink:0}}>{SL[t.status]}</span>
                 </div>
-                <div style={{display:'flex',gap:'5px',fontSize:'11px',color:'#475569',flexWrap:'wrap' as const}}>
+                <div style={{display:'flex',gap:'5px',fontSize:'11px',color:'#6b7280',flexWrap:'wrap' as const}}>
                   {t.customer_code&&<span style={{color:'#a855f7',fontWeight:600}}>{clientName(t.customer_code)}</span>}
                   <span>·</span><span>{t.category}</span>
                   {assignee&&<><span>·</span><span style={{color:'#22c55e'}}>👤{assignee.display_name}</span></>}
@@ -114,31 +114,31 @@ function WarehouseTodosContent() {
       {/* Right panel */}
       {selected?(
         <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-          <div style={{padding:'18px 24px',borderBottom:'1px solid #2a3250',background:'#161b26'}}>
+          <div style={{padding:'18px 24px',borderBottom:'1px solid #e2e8f0',background:'#ffffff'}}>
             <div style={{display:'flex',alignItems:'flex-start',gap:'10px',marginBottom:'8px'}}>
               <div style={{flex:1}}>
-                <h2 style={{fontSize:'15px',fontWeight:800,color:'#f1f5f9',marginBottom:'6px'}}>{selected.title}</h2>
+                <h2 style={{fontSize:'15px',fontWeight:800,color:'#0f172a',marginBottom:'6px'}}>{selected.title}</h2>
                 <div style={{display:'flex',gap:'5px',flexWrap:'wrap' as const}}>
                   <span style={{padding:'2px 7px',borderRadius:'4px',fontSize:'11px',background:`${SC[selected.status]}22`,color:SC[selected.status],fontWeight:700}}>{SL[selected.status]}</span>
-                  <span style={{padding:'2px 7px',borderRadius:'4px',fontSize:'11px',background:'#2a325055',color:'#94a3b8'}}>{selected.category}</span>
+                  <span style={{padding:'2px 7px',borderRadius:'4px',fontSize:'11px',background:'#f1f5f9',color:'#64748b'}}>{selected.category}</span>
                   {selected.customer_code&&<span style={{padding:'2px 7px',borderRadius:'4px',fontSize:'11px',background:'#a855f722',color:'#a855f7',fontWeight:600}}>{clientName(selected.customer_code)}</span>}
-                  {selected.source==='lingxing_auto'&&<span style={{padding:'2px 7px',borderRadius:'4px',fontSize:'11px',background:'#3b82f622',color:'#3b82f6'}}>领星同步</span>}
+                  {selected.source==='lingxing_auto'&&<span style={{padding:'2px 7px',borderRadius:'4px',fontSize:'11px',background:'#eff6ff',color:'#3b82f6'}}>领星同步</span>}
                 </div>
               </div>
             </div>
-            {selected.description&&<p style={{fontSize:'12px',color:'#94a3b8',lineHeight:1.7}}>{selected.description}</p>}
+            {selected.description&&<p style={{fontSize:'12px',color:'#64748b',lineHeight:1.7}}>{selected.description}</p>}
           </div>
 
-          <div style={{padding:'14px 24px',borderBottom:'1px solid #2a3250',display:'flex',gap:'20px',alignItems:'flex-start',flexWrap:'wrap' as const}}>
+          <div style={{padding:'14px 24px',borderBottom:'1px solid #e2e8f0',display:'flex',gap:'20px',alignItems:'flex-start',flexWrap:'wrap' as const}}>
             <div>
               <div style={{fontSize:'10px',color:'#64748b',marginBottom:'5px',fontWeight:600}}>状态</div>
               <div style={{display:'flex',gap:'4px'}}>
-                {SL.map((l,i)=><button key={i} onClick={()=>updateStatus(selected.id,i)} style={{padding:'5px 9px',borderRadius:'5px',border:'none',background:selected.status===i?`${SC[i]}33`:'#1e2535',color:selected.status===i?SC[i]:'#64748b',cursor:'pointer',fontSize:'11px',fontWeight:selected.status===i?700:400}}>{l}</button>)}
+                {SL.map((l,i)=><button key={i} onClick={()=>updateStatus(selected.id,i)} style={{padding:'5px 9px',borderRadius:'5px',border:'none',background:selected.status===i?`${SC[i]}33`:'#f1f5f9',color:selected.status===i?SC[i]:'#64748b',cursor:'pointer',fontSize:'11px',fontWeight:selected.status===i?700:400}}>{l}</button>)}
               </div>
             </div>
             <div>
               <div style={{fontSize:'10px',color:'#64748b',marginBottom:'5px',fontWeight:600}}>指派给员工</div>
-              <select value={selected.assigned_to??''} onChange={e=>assignTodo(selected.id,e.target.value)} style={{padding:'6px 10px',borderRadius:'6px',background:'#1e2535',border:'1px solid #2a3250',color:'#e2e8f0',fontSize:'12px',cursor:'pointer'}}>
+              <select value={selected.assigned_to??''} onChange={e=>assignTodo(selected.id,e.target.value)} style={{padding:'6px 10px',borderRadius:'6px',background:'#f1f5f9',border:'1px solid #e2e8f0',color:'#0f172a',fontSize:'12px',cursor:'pointer'}}>
                 <option value="">未指派</option>
                 {staff.map(s=><option key={s.id} value={s.id}>{s.display_name}</option>)}
               </select>
@@ -146,28 +146,28 @@ function WarehouseTodosContent() {
           </div>
 
           <div style={{flex:1,overflowY:'auto' as const,padding:'14px 24px'}}>
-            <div style={{fontSize:'13px',fontWeight:700,color:'#f1f5f9',marginBottom:'10px'}}>💬 留言反馈（中西双语）</div>
-            {comments.length===0?<div style={{color:'#475569',fontSize:'12px',marginBottom:'12px'}}>暂无留言</div>
+            <div style={{fontSize:'13px',fontWeight:700,color:'#0f172a',marginBottom:'10px'}}>💬 留言反馈（中西双语）</div>
+            {comments.length===0?<div style={{color:'#6b7280',fontSize:'12px',marginBottom:'12px'}}>暂无留言</div>
             :comments.map(c=>(
-              <div key={c.id} style={{marginBottom:'10px',padding:'12px',background:'#161b26',borderRadius:'8px',border:'1px solid #2a3250'}}>
+              <div key={c.id} style={{marginBottom:'10px',padding:'12px',background:'#ffffff',borderRadius:'8px',border:'1px solid #e2e8f0'}}>
                 <div style={{fontSize:'11px',color:'#64748b',marginBottom:'5px'}}>
                   {c.author?.display_name??'用户'} · {new Date(c.created_at).toLocaleString('zh-CN')}
-                  <span style={{marginLeft:'6px',padding:'1px 5px',borderRadius:'3px',background:'#2a3250',color:'#94a3b8',fontSize:'10px'}}>{c.original_lang==='zh'?'🇨🇳中文':'🇲🇽Español'}</span>
+                  <span style={{marginLeft:'6px',padding:'1px 5px',borderRadius:'3px',background:'#e2e8f0',color:'#64748b',fontSize:'10px'}}>{c.original_lang==='zh'?'🇨🇳中文':'🇲🇽Español'}</span>
                 </div>
-                {c.content_zh&&<div style={{fontSize:'13px',color:'#e2e8f0',marginBottom:c.content_es?'5px':0}}>🇨🇳 {c.content_zh}</div>}
-                {c.content_es&&<div style={{fontSize:'13px',color:'#94a3b8'}}>🇲🇽 {c.content_es}</div>}
+                {c.content_zh&&<div style={{fontSize:'13px',color:'#0f172a',marginBottom:c.content_es?'5px':0}}>🇨🇳 {c.content_zh}</div>}
+                {c.content_es&&<div style={{fontSize:'13px',color:'#64748b'}}>🇲🇽 {c.content_es}</div>}
               </div>
             ))}
           </div>
-          <div style={{padding:'12px 24px',borderTop:'1px solid #2a3250',background:'#161b26'}}>
+          <div style={{padding:'12px 24px',borderTop:'1px solid #e2e8f0',background:'#ffffff'}}>
             <div style={{display:'flex',gap:'8px',alignItems:'flex-end'}}>
-              <textarea value={newComment} onChange={e=>setNewComment(e.target.value)} placeholder="添加留言（中文/Español）→ 自动双语翻译" rows={2} style={{flex:1,padding:'9px 12px',borderRadius:'8px',background:'#0f1117',border:'1px solid #2a3250',color:'#e2e8f0',fontSize:'13px',resize:'none' as const,outline:'none'}}/>
+              <textarea value={newComment} onChange={e=>setNewComment(e.target.value)} placeholder="添加留言（中文/Español）→ 自动双语翻译" rows={2} style={{flex:1,padding:'9px 12px',borderRadius:'8px',background:'#f8fafc',border:'1px solid #e2e8f0',color:'#0f172a',fontSize:'13px',resize:'none' as const,outline:'none'}}/>
               <button onClick={postComment} disabled={translating||!newComment.trim()} style={{padding:'9px 14px',borderRadius:'8px',background:translating?'#1e3a5f':'#3b82f6',border:'none',color:'white',fontWeight:700,fontSize:'13px',cursor:translating?'not-allowed':'pointer',flexShrink:0}}>{translating?'翻译中...':'发送'}</button>
             </div>
           </div>
         </div>
       ):(
-        <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'#475569'}}>
+        <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'#6b7280'}}>
           <div style={{textAlign:'center' as const}}>
             <div style={{fontSize:'36px',marginBottom:'12px',opacity:0.4}}>📋</div>
             <div style={{fontSize:'13px'}}>选择左侧待办查看详情、指派员工、添加留言</div>
@@ -179,5 +179,5 @@ function WarehouseTodosContent() {
 }
 
 export default function WarehouseTodosPage() {
-  return <Suspense fallback={<div style={{padding:'40px',textAlign:'center' as const,color:'#475569'}}>加载中...</div>}><WarehouseTodosContent/></Suspense>
+  return <Suspense fallback={<div style={{padding:'40px',textAlign:'center' as const,color:'#6b7280'}}>加载中...</div>}><WarehouseTodosContent/></Suspense>
 }

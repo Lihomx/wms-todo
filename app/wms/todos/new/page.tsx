@@ -16,7 +16,7 @@ const DEFAULT_CHECKS: Record<string,string[]> = {
 }
 
 const lbl: React.CSSProperties = { display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748b', marginBottom: '7px', textTransform: 'uppercase', letterSpacing: '0.5px' }
-const inp: React.CSSProperties = { width: '100%', background: '#0d1117', border: '1px solid #2a3250', borderRadius: '8px', padding: '10px 13px', color: '#e2e8f0', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }
+const inp: React.CSSProperties = { width: '100%', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 13px', color: '#0f172a', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }
 
 export default function NewTodoPage() {
   const router = useRouter()
@@ -72,12 +72,12 @@ export default function NewTodoPage() {
   ]
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', background: '#0d1117' }}>
+    <div style={{ flex: 1, overflowY: 'auto', background: '#f8fafc' }}>
       <div style={{ maxWidth: '760px', margin: '0 auto', padding: '28px 24px' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '28px' }}>
-          <Link href="/wms/todos" style={{ padding: '7px 12px', borderRadius: '7px', border: '1px solid #2a3250', color: '#64748b', textDecoration: 'none', fontSize: '12px' }}>← 返回</Link>
+          <Link href="/wms/todos" style={{ padding: '7px 12px', borderRadius: '7px', border: '1px solid #e2e8f0', color: '#64748b', textDecoration: 'none', fontSize: '12px' }}>← 返回</Link>
           <div>
             <h1 style={{ fontSize: '18px', fontWeight: 800, color: '#f1f5f9' }}>新建待办</h1>
             <p style={{ fontSize: '12px', color: '#475569', marginTop: '3px' }}>手工录入 · 数据保存到本地</p>
@@ -120,7 +120,7 @@ export default function NewTodoPage() {
               <label style={lbl}>业务分类 *</label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 {CATS.map(c=>(
-                  <div key={c} onClick={()=>handleCatChange(c)} style={{ padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', border: `1px solid ${category===c?'#3b82f6':'#2a3250'}`, background: category===c?'#1e3a5f':'#161b26', transition: 'all 0.15s' }}>
+                  <div key={c} onClick={()=>handleCatChange(c)} style={{ padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', border: `1px solid ${category===c?'#3b82f6':'#e2e8f0'}`, background: category===c?'#1e3a5f':'#ffffff', transition: 'all 0.15s' }}>
                     <div style={{ fontSize: '16px' }}>{CAT_ICONS[c]}</div>
                     <div style={{ fontSize: '12px', fontWeight: 700, color: category===c?'#93c5fd':'#94a3b8', marginTop: '4px' }}>{c}</div>
                     <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>{CAT_DESC[c]}</div>
@@ -135,7 +135,7 @@ export default function NewTodoPage() {
               <div style={{ display: 'flex', gap: '8px' }}>
                 {priOpts.map(p=>(
                   <div key={p.v} onClick={()=>setPri(p.v)} style={{ flex: 1, padding: '10px', borderRadius: '8px', cursor: 'pointer', border: `1px solid ${priority===p.v?p.color:p.color+'33'}`, background: priority===p.v?`${p.color}18`:'transparent', textAlign: 'center', transition: 'all 0.15s' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: priority===p.v?p.color:'#64748b' }}>{p.label}</div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: priority===p.v?p.color:'#6b7280' }}>{p.label}</div>
                     <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>{p.desc}</div>
                   </div>
                 ))}
@@ -145,15 +145,15 @@ export default function NewTodoPage() {
         </div>
 
         {/* Checklist */}
-        <div style={{ marginTop: '24px', padding: '20px', background: '#161b26', border: '1px solid #2a3250', borderRadius: '12px' }}>
+        <div style={{ marginTop: '24px', padding: '20px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
           <div style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span>📋 检查清单（{checks.length} 项）</span>
             <span style={{ fontSize: '10px', color: '#334155' }}>根据分类自动生成，可修改</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginBottom: '10px' }}>
             {checks.map((c,i)=>(
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: '#0d1117', border: '1px solid #2a3250', borderRadius: '7px' }}>
-                <div style={{ width: '14px', height: '14px', borderRadius: '3px', border: '1px solid #2a3250', flexShrink: 0 }} />
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '7px' }}>
+                <div style={{ width: '14px', height: '14px', borderRadius: '3px', border: '1px solid #e2e8f0', flexShrink: 0 }} />
                 <span style={{ flex: 1, fontSize: '12px', color: '#94a3b8' }}>{c}</span>
                 <button onClick={()=>removeCheck(i)} style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: '14px', lineHeight: 1, padding: '0 4px' }}>×</button>
               </div>
@@ -167,7 +167,7 @@ export default function NewTodoPage() {
 
         {/* Submit */}
         <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
-          <Link href="/wms/todos" style={{ padding: '10px 22px', borderRadius: '8px', border: '1px solid #2a3250', color: '#64748b', textDecoration: 'none', fontSize: '13px' }}>取消</Link>
+          <Link href="/wms/todos" style={{ padding: '10px 22px', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#64748b', textDecoration: 'none', fontSize: '13px' }}>取消</Link>
           <button onClick={submit} disabled={saving} style={{ padding: '10px 28px', borderRadius: '8px', background: saving?'#1e3a5f':'#3b82f6', border: 'none', color: 'white', fontWeight: 700, fontSize: '14px', cursor: saving?'not-allowed':'pointer', boxShadow: saving?'none':'0 0 16px #3b82f644' }}>
             {saving ? '创建中...' : '✓ 创建待办'}
           </button>

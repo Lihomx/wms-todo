@@ -51,9 +51,17 @@ export async function GET(req:NextRequest){
     const type=searchParams.get('type')?? 'all'
     const tenantId=searchParams.get('tenantId')??DEFAULT_TENANT
     const supabase=getSupabaseAdminClient()
-    const {data:cred}=await supabase.from('lingxing_credentials').select('app_key,app_secret,auth_status').eq('tenant_id',tenantId).single()
-    if(!cred||cred.auth_status!==1) return NextResponse.json({error:'未绑定领星账号'},{status:401})
-    const appKey=decrypt(cred.app_key), appSecret=decrypt(cred.app_secret)
+    const clientId=searchParams.get('clientId')
+    let appKey='',appSecret=''
+    if(clientId){
+      const {data:cl}=await supabase.from('oms_clients').select('app_key,app_secret,auth_status').eq('id',clientId).single()
+      if(!cl||cl.auth_status!==1||!cl.app_key) return NextResponse.json({error:'该客户未绑定AppKey'},{status:401})
+      appKey=decrypt(cl.app_key); appSecret=decrypt(cl.app_secret)
+    } else {
+      const {data:cred}=await supabase.from('lingxing_credentials').select('app_key,app_secret,auth_status').eq('tenant_id',tenantId).single()
+      if(!cred||cred.auth_status!==1) return NextResponse.json({error:'未绑定领星账号'},{status:401})
+      appKey=decrypt(cred.app_key); appSecret=decrypt(cred.app_secret)
+    }
     if(type!=='all'){
       const cfg=CONFIGS[type]
       if(!cfg) return NextResponse.json({error:`不支持: ${type}`},{status:400})
