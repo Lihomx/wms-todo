@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
 
 const NAV = [
   { group: '工作台', items: [
@@ -21,7 +22,14 @@ const NAV = [
 ]
 
 export default function WarehouseLayout({ children }: { children: React.ReactNode }) {
-  const path = usePathname()
+  const path   = usePathname()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    const supabase = getSupabaseBrowserClient()
+    await supabase.auth.signOut()
+    router.push('/auth/login')
+  }
   return (
     <div style={{display:'flex',height:'100vh',background:'#f8fafc',color:'#0f172a',fontFamily:"'Segoe UI',system-ui,-apple-system,sans-serif"}}>
       {/* Sidebar */}
@@ -63,9 +71,12 @@ export default function WarehouseLayout({ children }: { children: React.ReactNod
         </nav>
         {/* Bottom */}
         <div style={{padding:'10px 8px',borderTop:'1px solid #f1f5f9'}}>
-          <Link href="/wms/dashboard" style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 10px',borderRadius:'6px',textDecoration:'none',color:'#94a3b8',fontSize:'12px',background:'#f8fafc',border:'1px solid #e2e8f0'}}>
+          <Link href="/wms/dashboard" style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 10px',borderRadius:'6px',textDecoration:'none',color:'#94a3b8',fontSize:'12px',background:'#f8fafc',border:'1px solid #e2e8f0',marginBottom:'5px'}}>
             <span>🔗</span><span>OMS 客户端</span>
           </Link>
+          <button onClick={handleLogout} style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 10px',borderRadius:'6px',background:'none',border:'none',color:'#94a3b8',fontSize:'12px',cursor:'pointer',width:'100%',textAlign:'left' as const}}>
+            <span>↩</span><span>退出登录</span>
+          </button>
         </div>
       </div>
       <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>{children}</div>
