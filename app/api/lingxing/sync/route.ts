@@ -84,9 +84,20 @@ async function syncReturns(ak:string,as_:string,sb:any,tid:string){
   const orders=await fetchPages(ak,as_,'/v1/returnOrder/pageList',{},{maxPageSize:10})
   let c=0,s=0
   for(const o of orders){
-    if([3,4].includes(o.status)){s++;continue}
+    // 只跳过已取消(4)，其他状态包括已完成(3)都同步
+    if(o.status===4){s++;continue}
     const no=String(o.returnNo??o.orderNo??o.id??''); if(!no){s++;continue}
-    const r=await upsertTodo(sb,tid,{title:`【退件处理】${no}`,category:'退货处理',priority:1,lingxing_order_no:no,source:'lingxing_auto',description:`类型：${o.returnType===2?'买家退件':o.returnType===3?'平台退件':'服务商退件'}`})
+    const statusLabel = o.status===0?'草稿':o.status===1?'待入库':o.status===2?'处理中':o.status===3?'已完成':'未知'
+    const typeLabel = o.returnType===2?'买家退件':o.returnType===3?'平台退件':'服务商退件'
+    const r=await upsertTodo(sb,tid,{
+      title:`【退件】${no}`,
+      category:'退货处理',
+      priority: o.status===3?3:1,  // 已完成优先级低
+      lingxing_order_no:no,
+      source:'lingxing_auto',
+      description:`类型：${typeLabel} | 状态：${statusLabel} | 仓库：${o.whCode??'-'}`,
+      status: o.status===3?2:0,  // 已完成→待办已完成(2)，其他→待办待处理(0)
+    })
     r==='created'?c++:s++
   }
   return {created:c,skipped:s}
@@ -99,9 +110,9 @@ async function syncInventory(ak:string,as_:string,sb:any,tid:string){
   let c=0,s=0
   for(const item of items){
     const qty=Number(item.productStockDtl?.availableAmount??item.availableAmount??item.availableQty??99)
-    if(qty>10){s++;continue}
+    if(qty>10){s++;continue}  // 预警阈值10件
     const sku=String(item.sku??''); if(!sku){s++;continue}
-    const r=await upsertTodo(sb,tid,{title:`【库存预警】${sku} 剩余 ${qty}`,category:'库存管理',priority:qty<=3?1:2,lingxing_order_no:`inv_${sku}`,source:'lingxing_auto',description:`SKU: ${sku} | 可用库存: ${qty}`})
+    const r=await upsertTodo(sb,tid,{title:`【库存预警】${sku} 可用库存 ${qty} 件`,category:'库存管理',priority:qty<=3?1:2,lingxing_order_no:`inv_${sku}`,source:'lingxing_auto',description:`SKU: ${sku} | 可用库存: ${qty}`})
     r==='created'?c++:s++
   }
   return {created:c,skipped:s}
