@@ -7,14 +7,16 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = getSupabaseAdminClient()
     const { searchParams } = new URL(req.url)
-    const status   = searchParams.get('status')
-    const category = searchParams.get('category')
-    const page     = parseInt(searchParams.get('page') || '1')
-    const pageSize = parseInt(searchParams.get('pageSize') || '100')
+    const status    = searchParams.get('status')
+    const category  = searchParams.get('category')
+    const page      = parseInt(searchParams.get('page') || '1')
+    const pageSize  = parseInt(searchParams.get('pageSize') || '100')
+    const tenantId  = searchParams.get('tenantId') || process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || 'a0000000-0000-0000-0000-000000000001'
 
     let query = supabase
       .from('todos')
       .select('*, checklist_items(id,content,is_done,sort_order)', { count: 'exact' })
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
       .range((page - 1) * pageSize, page * pageSize - 1)
 
@@ -37,7 +39,7 @@ export async function POST(req: NextRequest) {
     if (!title || !category) return NextResponse.json({ error: '标题和分类不能为空' }, { status: 400 })
 
     const { data: todo, error } = await supabase.from('todos').insert({
-      tenant_id: tenant_id || '00000000-0000-0000-0000-000000000001',
+      tenant_id: tenant_id || process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || 'a0000000-0000-0000-0000-000000000001',
       title, category,
       priority:           priority ?? 2,
       due_date:           due_date ?? null,
