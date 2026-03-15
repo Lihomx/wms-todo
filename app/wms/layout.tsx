@@ -17,6 +17,7 @@ const NAV = [
   { group: '领星数据', items: [
     { href: '/wms/oms-data', icon: '🔗', label: 'OMS 数据总览' },
     { href: '/wms/sync',     icon: '⟳',  label: '数据同步' },
+    { href: '/warehouse/dashboard', icon: '🏭', label: '仓库管理端' },
   ]},
   { group: '系统', items: [
     { href: '/wms/settings', icon: '⚙️', label: '系统设置' },

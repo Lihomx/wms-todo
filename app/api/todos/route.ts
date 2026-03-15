@@ -11,7 +11,9 @@ export async function GET(req: NextRequest) {
     const category  = searchParams.get('category')
     const page      = parseInt(searchParams.get('page') || '1')
     const pageSize  = parseInt(searchParams.get('pageSize') || '100')
-    const tenantId  = searchParams.get('tenantId') || process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || 'a0000000-0000-0000-0000-000000000001'
+    const tenantId     = searchParams.get('tenantId') || process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || 'a0000000-0000-0000-0000-000000000001'
+    const customerCode = searchParams.get('customerCode')
+    const search       = searchParams.get('search')
 
     let query = supabase
       .from('todos')
@@ -20,8 +22,10 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: false })
       .range((page - 1) * pageSize, page * pageSize - 1)
 
-    if (status   !== null && status   !== '') query = query.eq('status',   parseInt(status))
-    if (category !== null && category !== '') query = query.eq('category', category)
+    if (status       !== null && status       !== '') query = query.eq('status',        parseInt(status))
+    if (category     !== null && category     !== '') query = query.eq('category',       category)
+    if (customerCode !== null && customerCode !== '') query = query.eq('customer_code',  customerCode)
+    if (search       !== null && search       !== '') query = query.ilike('title',       `%${search}%`)
 
     const { data, error, count } = await query
     if (error) throw error
@@ -75,6 +79,8 @@ export async function PATCH(req: NextRequest) {
     if (updates.due_date    !== undefined)   patch.due_date    = updates.due_date
     if (updates.description !== undefined)   patch.description = updates.description
     if (updates.category    !== undefined)   patch.category    = updates.category
+    if (updates.assigned_to !== undefined)   patch.assigned_to = updates.assigned_to
+    if (updates.assigned_at !== undefined)   patch.assigned_at = updates.assigned_at
 
     const { data, error } = await supabase.from('todos').update(patch).eq('id', id).select().single()
     if (error) throw error

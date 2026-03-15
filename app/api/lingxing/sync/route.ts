@@ -37,7 +37,7 @@ async function fetchPages(appKey:string, appSecret:string, endpoint:string, para
   return all
 }
 
-async function upsertTodo(supabase:any, tenantId:string, todo:{title:string;category:string;priority:number;status?:number;due_date?:string|null;description?:string|null;lingxing_order_no:string;source:string}): Promise<'created'|'skipped'> {
+async function upsertTodo(supabase:any, tenantId:string, todo:{title:string;category:string;priority:number;status?:number;due_date?:string|null;description?:string|null;lingxing_order_no:string;source:string;customer_code?:string}): Promise<'created'|'skipped'> {
   const {data:existing}=await supabase.from('todos').select('id').eq('tenant_id',tenantId).eq('lingxing_order_no',todo.lingxing_order_no).maybeSingle()
   if(existing) return 'skipped'
   const {error}=await supabase.from('todos').insert({tenant_id:tenantId,status:todo.status??0,...todo})
@@ -51,7 +51,8 @@ async function syncInbound(ak:string,as_:string,sb:any,tid:string){
   for(const o of orders){
     if([4,5].includes(o.status)){s++;continue}
     const no=String(o.inboundOrderNo??o.orderNo??o.id??''); if(!no){s++;continue}
-    const r=await upsertTodo(sb,tid,{title:o.status===3?`【待上架】${no}`:`【待入库】${no}`,category:'入库作业',priority:o.status===3?1:2,lingxing_order_no:no,source:'lingxing_auto',description:`客户：${o.customerName??'-'} | 状态：${o.status}`,due_date:o.expectedDate??null})
+    const r=await upsertTodo(sb,tid,{title:o.status===3?`【待上架】${no}`:`【待入库】${no}`,category:'入库作业',priority:o.status===3?1:2,lingxing_order_no:no,source:'lingxing_auto',description:`客户：${o.customerName??'-'} | 状态：${o.status}`,due_date:o.expectedDate??null,
+      customer_code:String(o.customerCode??o.customer_code??o.customerId??'')}  )
     r==='created'?c++:s++
   }
   return {created:c,skipped:s}
@@ -97,6 +98,7 @@ async function syncReturns(ak:string,as_:string,sb:any,tid:string){
       lingxing_order_no:no,
       source:'lingxing_auto',
       description:`类型：${typeLabel} | 状态：${statusLabel} | 仓库：${o.whCode??'-'}`,
+      customer_code: String(o.customerCode??o.customer_code??o.customerId??''),
       status: o.status===3?2:0,  // 已完成→待办已完成(2)，其他→待办待处理(0)
     })
     r==='created'?c++:s++
@@ -113,7 +115,8 @@ async function syncInventory(ak:string,as_:string,sb:any,tid:string){
     const qty=Number(item.productStockDtl?.availableAmount??item.availableAmount??item.availableQty??99)
     if(qty>10){s++;continue}  // 预警阈值10件
     const sku=String(item.sku??''); if(!sku){s++;continue}
-    const r=await upsertTodo(sb,tid,{title:`【库存预警】${sku} 可用库存 ${qty} 件`,category:'库存管理',priority:qty<=3?1:2,lingxing_order_no:`inv_${sku}`,source:'lingxing_auto',description:`SKU: ${sku} | 可用库存: ${qty}`})
+    const r=await upsertTodo(sb,tid,{title:`【库存预警】${sku} 可用库存 ${qty} 件`,category:'库存管理',priority:qty<=3?1:2,lingxing_order_no:`inv_${sku}`,source:'lingxing_auto',description:`SKU: ${sku} | 可用库存: ${qty}`,
+      customer_code: String(item.customerCode??item.customer_code??item.customerId??''),})
     r==='created'?c++:s++
   }
   return {created:c,skipped:s}
