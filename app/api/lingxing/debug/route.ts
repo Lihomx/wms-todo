@@ -10,7 +10,7 @@ const DEFAULT_TENANT = process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID ?? 'a0000000-00
 async function callV2(appKey:string, appSecret:string, endpoint:string, data:Record<string,any>={}) {
   const reqTime  = String(Math.floor(Date.now()/1000))
   const authcode = generateAuthcodeV2(appKey, appSecret, reqTime, data)
-  const bodyObj  = {appKey, reqTime, data}
+  const bodyObj  = {appKey, reqTime, authcode, data}
   try {
     const res  = await fetch(`${API_BASE}${endpoint}?authcode=${authcode}`,{
       method:'POST',headers:{'Content-Type':'application/json'},

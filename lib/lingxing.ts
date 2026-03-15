@@ -1,18 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * 领星 OMS API 封装 (V2协议)
- * Base URL: https://api.xlwms.com/openapi
- * 文档: https://apidoc-oms.xlwms.com
  *
- * V2 请求格式：
- *   POST /endpoint?authcode=xxx
- *   Body: { appKey, reqTime, data: { ...业务参数 } }
+ * V2 Body: { appKey, reqTime, authcode, data: { ...业务参数 } }
  *
- * V2 签名算法：
- *   1. 业务参数 key 转小写，与 appKey/reqTime 合并
- *   2. 所有 key 按字典序排序
- *   3. 拼接 value：appKey/reqTime 不加引号，业务字符串值加双引号，数字不加
- *   4. authcode = HmacSHA256(appSecret, 拼接串)，hex小写
+ * V2 签名算法（已与领星技术确认）：
+ *   1. data 的 key 转小写，与 appKey/reqTime 合并
+ *   2. 所有 key 字典序排序
+ *   3. value 拼接：appKey/reqTime 不加引号，data 内字符串加双引号，数字不加
+ *   4. authcode = HmacSHA256(appSecret, 拼接串)
+ *
+ * 示例（库存接口）：
+ *   strToSign = appKey + "endTime_val" + inventoryType + page + pageSize + reqTime + "startTime_val"
  */
 
 import { encrypt, decrypt } from './crypto'
@@ -28,7 +27,7 @@ export function generateAuthcodeV2(
   reqTime: string,
   data: Record<string, any>
 ): string {
-  // data 的 key 转小写合并，appKey/reqTime 保持原key不转小写
+  // data 的 key 转小写，与 appKey/reqTime 合并
   const params: Record<string, any> = { appKey, reqTime }
   for (const [k, v] of Object.entries(data)) {
     params[k.toLowerCase()] = v
@@ -36,7 +35,7 @@ export function generateAuthcodeV2(
 
   const sorted = Object.entries(params).sort(([a], [b]) => a.localeCompare(b))
 
-  // appKey 和 reqTime 值不加引号，其他字符串值加双引号，数字直接转字符串
+  // appKey 和 reqTime 不加引号，data 内字符串加双引号，数字直接转字符串
   const strToSign = sorted
     .map(([k, v]) => {
       if (k === 'appKey' || k === 'reqTime') return String(v)
@@ -47,7 +46,7 @@ export function generateAuthcodeV2(
   return createHmac('sha256', appSecret).update(strToSign).digest('hex')
 }
 
-// ── V2 请求 ───────────────────────────────────────────────────
+// ── V2 请求：authcode 同时放 URL 和 body ──────────────────────
 async function omsRequest(
   appKey: string,
   appSecret: string,
@@ -57,8 +56,8 @@ async function omsRequest(
   const reqTime  = String(Math.floor(Date.now() / 1000))
   const authcode = generateAuthcodeV2(appKey, appSecret, reqTime, data)
 
-  // V2: 业务参数放在 data 字段，不展开到顶层
-  const body = { appKey, reqTime, data }
+  // V2: business params in data field; authcode in both URL and body
+  const body = { appKey, reqTime, authcode, data }
 
   const res = await fetch(`${API_BASE}${endpoint}?authcode=${authcode}`, {
     method:  'POST',
@@ -67,18 +66,15 @@ async function omsRequest(
   })
 
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${endpoint}`)
-
   const json = await res.json()
   const code = json.code ?? json.status
-
   if (code !== 200 && code !== 0 && code !== '200' && code !== '0') {
     throw new Error(`OMS code=${code} msg=${json.message ?? json.msg ?? ''}`)
   }
-
   return json.data ?? json
 }
 
-// ── 分页拉取所有数据 ──────────────────────────────────────────
+// ── 分页拉取 ──────────────────────────────────────────────────
 async function fetchAllPages(
   appKey: string,
   appSecret: string,
@@ -101,7 +97,7 @@ async function fetchAllPages(
 }
 
 // ── 获取租户凭证 ──────────────────────────────────────────────
-async function getTenantKeys(tenantId: string): Promise<{ appKey: string; appSecret: string }> {
+async function getTenantKeys(tenantId: string) {
   const supabase = getSupabaseAdminClient()
   const { data, error } = await supabase
     .from('lingxing_credentials')
@@ -119,20 +115,15 @@ export async function verifyAndBind(
   appKey: string,
   appSecret: string
 ): Promise<{ success: boolean; message: string; warehouseCount?: number }> {
-  if (!process.env.ENCRYPTION_SECRET || process.env.ENCRYPTION_SECRET.length < 16) {
-    return { success: false, message: '❌ 服务器配置错误：缺少 ENCRYPTION_SECRET' }
-  }
+  if (!process.env.ENCRYPTION_SECRET || process.env.ENCRYPTION_SECRET.length < 16)
+    return { success: false, message: '❌ 缺少 ENCRYPTION_SECRET 环境变量' }
 
   const supabase = getSupabaseAdminClient()
-
-  // 自动创建默认租户
   const { data: tenant } = await supabase.from('tenants').select('id').eq('id', tenantId).maybeSingle()
-  if (!tenant) {
-    await supabase.from('tenants').insert({ id: tenantId, name: '默认仓库' })
-  }
+  if (!tenant) await supabase.from('tenants').insert({ id: tenantId, name: '默认仓库' })
 
   try {
-    const rawData = await omsRequest(appKey, appSecret, '/v1/warehouse/options', {})
+    const rawData  = await omsRequest(appKey, appSecret, '/v1/warehouse/options', {})
     const warehouses: any[] = Array.isArray(rawData) ? rawData : (rawData?.list ?? [])
     const warehouseIds = warehouses.map((w: any) => String(w.whCode ?? w.id ?? ''))
 
@@ -147,39 +138,18 @@ export async function verifyAndBind(
   }
 }
 
-// ── 业务数据接口 ──────────────────────────────────────────────
-export async function fetchInboundOrders(tenantId: string): Promise<any[]> {
-  const { appKey, appSecret } = await getTenantKeys(tenantId)
-  return fetchAllPages(appKey, appSecret, '/v1/inboundOrder/pageList', {})
-}
-
-export async function fetchOutboundOrders(tenantId: string): Promise<any[]> {
-  const { appKey, appSecret } = await getTenantKeys(tenantId)
-  return fetchAllPages(appKey, appSecret, '/v1/outboundOrder/pageList', {})
-}
-
-export async function fetchBigOutboundOrders(tenantId: string): Promise<any[]> {
-  const { appKey, appSecret } = await getTenantKeys(tenantId)
-  return fetchAllPages(appKey, appSecret, '/v1/bigOutboundOrder/pageList', {})
-}
-
-export async function fetchReturnOrders(tenantId: string): Promise<any[]> {
-  const { appKey, appSecret } = await getTenantKeys(tenantId)
-  return fetchAllPages(appKey, appSecret, '/v1/returnOrder/pageList', {})
-}
-
-export async function fetchInventory(tenantId: string): Promise<any[]> {
-  const { appKey, appSecret } = await getTenantKeys(tenantId)
+// ── 业务接口 ──────────────────────────────────────────────────
+export async function fetchInboundOrders(tenantId: string)     { const {appKey,appSecret}=await getTenantKeys(tenantId); return fetchAllPages(appKey,appSecret,'/v1/inboundOrder/pageList',{}) }
+export async function fetchOutboundOrders(tenantId: string)    { const {appKey,appSecret}=await getTenantKeys(tenantId); return fetchAllPages(appKey,appSecret,'/v1/outboundOrder/pageList',{}) }
+export async function fetchBigOutboundOrders(tenantId: string) { const {appKey,appSecret}=await getTenantKeys(tenantId); return fetchAllPages(appKey,appSecret,'/v1/bigOutboundOrder/pageList',{}) }
+export async function fetchReturnOrders(tenantId: string)      { const {appKey,appSecret}=await getTenantKeys(tenantId); return fetchAllPages(appKey,appSecret,'/v1/returnOrder/pageList',{}) }
+export async function fetchInventory(tenantId: string) {
+  const {appKey,appSecret} = await getTenantKeys(tenantId)
   const today = new Date().toISOString().split('T')[0]
-  const start = new Date(Date.now() - 90 * 864e5).toISOString().split('T')[0]
-  return fetchAllPages(appKey, appSecret, '/v1/integratedInventory/pageOpen', {
-    inventoryType: 1,
-    startTime: `${start} 00:00:00`,
-    endTime:   `${today} 23:59:59`,
-  })
+  const start = new Date(Date.now()-90*864e5).toISOString().split('T')[0]
+  return fetchAllPages(appKey,appSecret,'/v1/integratedInventory/pageOpen',{inventoryType:1,startTime:`${start} 00:00:00`,endTime:`${today} 23:59:59`})
 }
-
-export async function fetchWarehouses(appKey: string, appSecret: string): Promise<any[]> {
+export async function fetchWarehouses(appKey: string, appSecret: string) {
   const data = await omsRequest(appKey, appSecret, '/v1/warehouse/options', {})
   return Array.isArray(data) ? data : (data?.list ?? [])
 }
