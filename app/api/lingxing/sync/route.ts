@@ -21,15 +21,16 @@ async function omsPost(appKey: string, appSecret: string, endpoint: string, data
   return json.data??json
 }
 
-async function fetchPages(appKey:string, appSecret:string, endpoint:string, params:Record<string,any>={}): Promise<any[]> {
+async function fetchPages(appKey:string, appSecret:string, endpoint:string, params:Record<string,any>={}, opts:{maxPageSize?:number}={}): Promise<any[]> {
   const all:any[]=[]
   let page=1
+  const pageSize = opts.maxPageSize ?? 50
   while(true){
-    const data=await omsPost(appKey,appSecret,endpoint,{...params,page,pageSize:50})
+    const data=await omsPost(appKey,appSecret,endpoint,{...params,page,pageSize})
     const items:any[]=Array.isArray(data)?data:(data?.list??data?.records??data?.rows??[])
     all.push(...items)
     const total=Number(data?.total??data?.totalCount??0)
-    if(items.length<50||(total>0&&all.length>=total)) break
+    if(items.length<pageSize||(total>0&&all.length>=total)) break
     page++
     await new Promise(r=>setTimeout(r,300))
   }
@@ -80,7 +81,7 @@ async function syncBigOutbound(ak:string,as_:string,sb:any,tid:string){
 }
 
 async function syncReturns(ak:string,as_:string,sb:any,tid:string){
-  const orders=await fetchPages(ak,as_,'/v1/returnOrder/pageList',{})
+  const orders=await fetchPages(ak,as_,'/v1/returnOrder/pageList',{},{maxPageSize:10})
   let c=0,s=0
   for(const o of orders){
     if([3,4].includes(o.status)){s++;continue}
@@ -123,7 +124,7 @@ export async function POST(req: NextRequest) {
       const [inbound,outbound,bigOutbound,returns,inventory]=await Promise.all([
         run(()=>syncInbound(ak,as_,supabase,tenantId)),
         run(()=>syncOutbound(ak,as_,supabase,tenantId)),
-        run(()=>syncBigOutbound(ak,as_,supabase,tenantId)),
+        run(()=>syncBigOutbound(ak,as_,supabase,tenantId).catch(e=>{ if(e.message.includes('11008')) return {created:0,skipped:0}; throw e })),
         run(()=>syncReturns(ak,as_,supabase,tenantId)),
         run(()=>syncInventory(ak,as_,supabase,tenantId)),
       ])
@@ -134,7 +135,7 @@ export async function POST(req: NextRequest) {
     const handlers:Record<string,()=>Promise<any>>={
       inbound:()=>run(()=>syncInbound(ak,as_,supabase,tenantId)),
       outbound:()=>run(()=>syncOutbound(ak,as_,supabase,tenantId)),
-      bigOutbound:()=>run(()=>syncBigOutbound(ak,as_,supabase,tenantId)),
+      bigOutbound:()=>run(()=>syncBigOutbound(ak,as_,supabase,tenantId).catch(e=>{ if(e.message.includes('11008')) return {created:0,skipped:0}; throw e })),
       returns:()=>run(()=>syncReturns(ak,as_,supabase,tenantId)),
       inventory:()=>run(()=>syncInventory(ak,as_,supabase,tenantId)),
     }

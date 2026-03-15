@@ -19,15 +19,15 @@ async function omsPost(appKey:string,appSecret:string,endpoint:string,data:Recor
   return json.data??json
 }
 
-async function fetchPages(appKey:string,appSecret:string,endpoint:string,params:Record<string,any>={}): Promise<{items:any[];total:number}>{
+async function fetchPages(appKey:string,appSecret:string,endpoint:string,params:Record<string,any>={},maxPageSize=50): Promise<{items:any[];total:number}>{
   const all:any[]=[]
   let page=1
   while(true){
-    const data=await omsPost(appKey,appSecret,endpoint,{...params,page,pageSize:50})
+    const data=await omsPost(appKey,appSecret,endpoint,{...params,page,pageSize:maxPageSize})
     const items:any[]=Array.isArray(data)?data:(data?.list??data?.records??data?.rows??[])
     all.push(...items)
     const total=Number(data?.total??data?.totalCount??0)
-    if(items.length<50||(total>0&&all.length>=total)) break
+    if(items.length<maxPageSize||(total>0&&all.length>=total)) break
     page++; await new Promise(r=>setTimeout(r,250))
   }
   return {items:all,total:all.length}
@@ -36,12 +36,12 @@ async function fetchPages(appKey:string,appSecret:string,endpoint:string,params:
 const today=()=>new Date().toISOString().split('T')[0]
 const start90=()=>new Date(Date.now()-90*864e5).toISOString().split('T')[0]
 
-const CONFIGS:Record<string,{label:string;endpoint:string;params?:Record<string,any>;isOptions?:boolean}>={
+const CONFIGS:Record<string,{label:string;endpoint:string;params?:Record<string,any>;isOptions?:boolean;maxPageSize?:number}>={
   warehouses: {label:'仓库列表',endpoint:'/v1/warehouse/options',isOptions:true},
   inbound:    {label:'入库单',  endpoint:'/v1/inboundOrder/pageList'},
   outbound:   {label:'小包出库',endpoint:'/v1/outboundOrder/pageList'},
   bigOutbound:{label:'大货出库',endpoint:'/v1/bigOutboundOrder/pageList'},
-  returns:    {label:'退件单',  endpoint:'/v1/returnOrder/pageList'},
+  returns:    {label:'退件单',  endpoint:'/v1/returnOrder/pageList', maxPageSize:10},
   inventory:  {label:'综合库存',endpoint:'/v1/integratedInventory/pageOpen',params:{startTime:`${start90()} 00:00:00`,endTime:`${today()} 23:59:59`}},
 }
 
@@ -59,7 +59,7 @@ export async function GET(req:NextRequest){
       if(!cfg) return NextResponse.json({error:`不支持: ${type}`},{status:400})
       try{
         if(cfg.isOptions){const data=await omsPost(appKey,appSecret,cfg.endpoint,{});const items=Array.isArray(data)?data:(data?.list??[]);return NextResponse.json({type,label:cfg.label,items,total:items.length,timestamp:new Date().toISOString()})}
-        const result=await fetchPages(appKey,appSecret,cfg.endpoint,cfg.params??{})
+        const result=await fetchPages(appKey,appSecret,cfg.endpoint,cfg.params??{},cfg.maxPageSize??50)
         return NextResponse.json({type,label:cfg.label,...result,timestamp:new Date().toISOString()})
       }catch(e:any){return NextResponse.json({type,label:cfg.label,items:[],total:0,error:e.message,timestamp:new Date().toISOString()})}
     }
