@@ -21,8 +21,8 @@ function LoginForm() {
       const supabase = getSupabaseBrowserClient()
       const { error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
       if (err) { setError(err.message === 'Invalid login credentials' ? '邮箱或密码错误' : err.message); return }
-      router.push(redirect)
-      router.refresh()
+      // Hard redirect to ensure middleware picks up the new session cookie
+      window.location.href = redirect
     } catch {
       setError('登录失败，请重试')
     } finally {
