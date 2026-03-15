@@ -11,7 +11,7 @@ function LoginForm() {
   const [showPwd,  setShowPwd]  = useState(false)
   const router      = useRouter()
   const searchParams = useSearchParams()
-  const redirect    = searchParams.get('redirect') || '/warehouse/dashboard'
+  const redirectTo  = (searchParams.get('redirect') || '/warehouse/dashboard').replace(/^\/auth.*/, '/warehouse/dashboard')
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -22,7 +22,7 @@ function LoginForm() {
       const { error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
       if (err) { setError(err.message === 'Invalid login credentials' ? '邮箱或密码错误' : err.message); return }
       // Hard redirect to ensure middleware picks up the new session cookie
-      window.location.href = redirect
+      window.location.href = redirectTo
     } catch {
       setError('登录失败，请重试')
     } finally {

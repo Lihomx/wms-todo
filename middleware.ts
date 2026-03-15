@@ -6,6 +6,7 @@ export async function middleware(request: NextRequest) {
 
   // Always allow these paths
   if (
+    pathname === '/' ||
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
