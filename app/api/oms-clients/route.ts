@@ -60,3 +60,30 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const { id, customer_code, customer_name, oms_account, company_name } = await req.json()
+    if (!id) return NextResponse.json({ error: '缺少 id' }, { status: 400 })
+    if (!customer_code || !customer_name) return NextResponse.json({ error: '客户代码和名称必填' }, { status: 400 })
+
+    const supabase = getSupabaseAdminClient()
+
+    // Check duplicate customer_code (exclude self)
+    const { data: existing } = await supabase.from('oms_clients')
+      .select('id').eq('customer_code', customer_code.trim()).neq('id', id).maybeSingle()
+    if (existing) return NextResponse.json({ error: `客户代码 ${customer_code} 已被其他客户使用` }, { status: 409 })
+
+    const { error } = await supabase.from('oms_clients').update({
+      customer_code: customer_code.trim(),
+      customer_name: customer_name.trim(),
+      oms_account:   oms_account?.trim() ?? '',
+      company_name:  company_name?.trim() ?? '',
+    }).eq('id', id)
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true, message: '客户信息已更新' })
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
+}
