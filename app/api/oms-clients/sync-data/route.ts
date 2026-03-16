@@ -42,9 +42,10 @@ async function upsert(supabase:any, tenantId:string, customerCode:string, todo:{
   if(ex) {
     const upd: any = {}
     if(!ex.customer_code && customerCode) upd.customer_code = customerCode
-    if(todo.extra_data) upd.extra_data = todo.extra_data
+    // Always update extra_data to get latest logistics info
+    if(todo.extra_data && Object.keys(todo.extra_data).length > 0) upd.extra_data = todo.extra_data
     if(Object.keys(upd).length) await supabase.from('todos').update(upd).eq('id',ex.id)
-    return ex.customer_code ? 'skipped' : 'updated'
+    return 'updated'
   }
   const {error}=await supabase.from('todos').insert({tenant_id:tenantId,customer_code:customerCode,...todo})
   if(error) throw new Error(`Insert failed: ${error.message}`)
@@ -101,27 +102,37 @@ export async function POST(req: NextRequest) {
           lingxing_order_no:no,source:'lingxing_auto',
           description:`平台：${o.salesPlatform??'-'} | 物流：${o.logisticsChannel??'-'} | 收件人：${o.receiver??'-'}`,
           extra_data:{
-            outboundOrderNo: no,
-            salesPlatform: o.salesPlatform??'',
-            logisticsChannel: o.logisticsChannel??'',
-            logisticsCarrier: o.logisticsCarrier??'',
-            logisticsTrackNo: o.logisticsTrackNo??'',
-            receiver: o.receiver??'',
+            outboundOrderNo:   no,
+            salesPlatform:     o.salesPlatform??'',
+            logisticsChannel:  o.logisticsChannel??'',
+            logisticsTrackNo:  o.logisticsTrackNo??'',
+            logisticsTrackNos: o.logisticsTrackNos??[],
+            logisticsCarrier:  o.logisticsCarrier??'',
+            receiver:          o.receiver??'',
+            telephone:         o.telephone??'',
+            companyName:       o.companyName??'',
+            taxNum:            o.taxNum??'',
             countryRegionCode: o.countryRegionCode??'',
-            provinceName: o.provinceName??'',
-            cityName: o.cityName??'',
-            postCode: o.postCode??'',
-            addressOne: o.addressOne??'',
-            warehouseCode: o.whCode??'',
-            orderCreateTime: o.orderCreateTime??'',
-            outboundTime: o.outboundTime??'',
-            canceledTime: o.canceledTime??'',
-            remark: o.remark??'',
-            referOrderNo: o.referOrderNo??'',
-            platformOrderNo: o.platformOrderNo??'',
-            productList: o.productList??[],
-            costTotal: o.costTotal??0,
-            costCurrencyCode: o.costCurrencyCode??'',
+            countryRegionName: o.countryRegionName??'',
+            provinceName:      o.provinceName??'',
+            provinceCode:      o.provinceCode??'',
+            cityName:          o.cityName??'',
+            postCode:          o.postCode??'',
+            addressOne:        o.addressOne??'',
+            addressTwo:        o.addressTwo??'',
+            whCode:            o.whCode??'',
+            orderCreateTime:   o.orderCreateTime??'',
+            outboundTime:      o.outboundTime??'',
+            canceledTime:      o.canceledTime??'',
+            interceptTime:     o.interceptTime??'',
+            remark:            o.remark??'',
+            referOrderNo:      o.referOrderNo??'',
+            platformOrderNo:   o.platformOrderNo??'',
+            costTotal:         o.costTotal??0,
+            costCurrencyCode:  o.costCurrencyCode??'',
+            exceptionDesc:     o.exceptionDesc??'',
+            productList:       (o.productList??[]).map((p:any)=>({sku:p.sku,productName:p.productName,quantity:p.quantity})),
+            expressList:       (o.expressList??[]).map((e:any)=>({trackNo:e.trackNo,weight:e.weight,length:e.length,width:e.width,height:e.height,pkgSkuNumInfo:e.pkgSkuNumInfo})),
           },
         })
         if(r==='created')c++; else if(r==='updated')c++; else s++
