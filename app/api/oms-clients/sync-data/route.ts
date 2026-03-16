@@ -36,16 +36,15 @@ async function fetchPages(appKey:string,appSecret:string,endpoint:string,params:
 async function upsert(supabase:any, tenantId:string, customerCode:string, todo:{
   title:string;category:string;priority:number;status:number
   description?:string|null;due_date?:string|null
-  lingxing_order_no:string;source:string
+  lingxing_order_no:string;source:string;extra_data?:Record<string,any>
 }) {
   const {data:ex}=await supabase.from('todos').select('id,customer_code').eq('tenant_id',tenantId).eq('lingxing_order_no',todo.lingxing_order_no).maybeSingle()
   if(ex) {
-    // Update customer_code if missing (fix previously synced todos)
-    if(!ex.customer_code && customerCode) {
-      await supabase.from('todos').update({customer_code:customerCode}).eq('id',ex.id)
-      return 'updated'
-    }
-    return 'skipped'
+    const upd: any = {}
+    if(!ex.customer_code && customerCode) upd.customer_code = customerCode
+    if(todo.extra_data) upd.extra_data = todo.extra_data
+    if(Object.keys(upd).length) await supabase.from('todos').update(upd).eq('id',ex.id)
+    return ex.customer_code ? 'skipped' : 'updated'
   }
   const {error}=await supabase.from('todos').insert({tenant_id:tenantId,customer_code:customerCode,...todo})
   if(error) throw new Error(`Insert failed: ${error.message}`)
@@ -100,7 +99,30 @@ export async function POST(req: NextRequest) {
         const r=await upsert(supabase,DEFAULT_TENANT,code,{
           title:`【一件代发】${no}`,category:'出库作业',priority:2,status:0,
           lingxing_order_no:no,source:'lingxing_auto',
-          description:`平台：${o.salesPlatform??'-'} | 物流：${o.logisticsChannel??o.logisticsCarrier??'-'} | 收件人：${o.receiver??'-'}`,
+          description:`平台：${o.salesPlatform??'-'} | 物流：${o.logisticsChannel??'-'} | 收件人：${o.receiver??'-'}`,
+          extra_data:{
+            outboundOrderNo: no,
+            salesPlatform: o.salesPlatform??'',
+            logisticsChannel: o.logisticsChannel??'',
+            logisticsCarrier: o.logisticsCarrier??'',
+            logisticsTrackNo: o.logisticsTrackNo??'',
+            receiver: o.receiver??'',
+            countryRegionCode: o.countryRegionCode??'',
+            provinceName: o.provinceName??'',
+            cityName: o.cityName??'',
+            postCode: o.postCode??'',
+            addressOne: o.addressOne??'',
+            warehouseCode: o.whCode??'',
+            orderCreateTime: o.orderCreateTime??'',
+            outboundTime: o.outboundTime??'',
+            canceledTime: o.canceledTime??'',
+            remark: o.remark??'',
+            referOrderNo: o.referOrderNo??'',
+            platformOrderNo: o.platformOrderNo??'',
+            productList: o.productList??[],
+            costTotal: o.costTotal??0,
+            costCurrencyCode: o.costCurrencyCode??'',
+          },
         })
         if(r==='created')c++; else if(r==='updated')c++; else s++
       }
