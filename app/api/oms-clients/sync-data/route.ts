@@ -92,24 +92,68 @@ export async function POST(req: NextRequest) {
       results.inbound = {created:c,skipped:s}
     } catch(e:any) { results.inbound = {created:0,skipped:0,error:e.message} }
 
-    // Sync outbound orders
+    // Sync outbound orders (use detail API to get productList, expressList, storeName)
     try {
-      const orders = await fetchPages(appKey, appSecret, '/v1/outboundOrder/pageList', {})
+      // Step 1: get all order numbers from pageList
+      const listOrders = await fetchPages(appKey, appSecret, '/v1/outboundOrder/pageList', {}, 50, 5)
+      const activeOrders = listOrders.filter((o:any)=>![3,4].includes(o.status))
+      
+      // Step 2: fetch detail in batches of 50 to get full data
+      const BATCH = 50
+      const allDetails: any[] = []
+      for(let i=0; i<activeOrders.length; i+=BATCH) {
+        const batch = activeOrders.slice(i, i+BATCH).map((o:any)=>o.outboundOrderNo).filter(Boolean)
+        if(!batch.length) continue
+        try {
+          const dData = {outboundOrderNoList: batch}
+          const dTime = String(Math.floor(Date.now()/1000))
+          const dAuth = generateAuthcode(appKey, appSecret, dTime, dData)
+          const dRes  = await fetch(`${API_BASE}/v1/outboundOrder/detail?authcode=${dAuth}`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({appKey, data:dData, reqTime:dTime})
+          })
+          const dJson = await dRes.json()
+          const details = dJson.data ?? []
+          allDetails.push(...(Array.isArray(details)?details:[]))
+        } catch(e:any) { /* skip failed batch */ }
+      }
+      
       let c=0,s=0
-      for(const o of orders) {
-        if([3,4].includes(o.status)){s++;continue}
-        const no=String(o.outboundOrderNo??o.orderNo??o.id??''); if(!no){s++;continue}
+      for(const o of allDetails) {
+        const no=String(o.outboundOrderNo??''); if(!no){s++;continue}
+        // Map status: 0-草稿,2-处理中,3-已出库,4-已取消,5-异常
+        const todoStatus = o.status===3?2 : o.status===4?3 : 0
+        
+        // productList from detail API
+        const productList = (o.productList??[]).map((p:any)=>({
+          sku: p.sku??'', productName: p.productName??'', quantity: p.quantity??0,
+        }))
+        // expressList from detail API  
+        const expressList = (o.expressList??[]).map((e:any)=>({
+          trackNo: e.trackNo??'', weight: e.weight??0,
+          length: e.length??0, width: e.width??0, height: e.height??0,
+          pkgSkuNumInfo: e.pkgSkuNumInfo??'',
+        }))
+        // logisticsTrackNos - prefer expressList trackNos, fallback to logisticsTrackNos field
+        const trackNos = expressList.length>0
+          ? expressList.map((e:any)=>e.trackNo).filter(Boolean)
+          : (o.logisticsTrackNos??[])
+        const trackNo = trackNos[0] ?? o.logisticsTrackNo ?? ''
+
         const r=await upsert(supabase,DEFAULT_TENANT,code,{
-          title:`【一件代发】${no}`,category:'出库作业',priority:2,status:0,
+          title:`【一件代发】${no}`,category:'出库作业',priority:2,
+          status:todoStatus,
           lingxing_order_no:no,source:'lingxing_auto',
-          description:`平台：${o.salesPlatform??'-'} | 物流：${o.logisticsChannel??'-'} | 收件人：${o.receiver??'-'}`,
+          description:`${o.salesPlatform??'-'} | ${o.logisticsCarrier||o.logisticsChannel||'-'} | ${o.receiver??'-'}`,
           extra_data:{
             outboundOrderNo:   no,
-            salesPlatform:     o.salesPlatform??'',
-            logisticsChannel:  o.logisticsChannel??'',
-            logisticsTrackNo:  o.logisticsTrackNo??'',
-            logisticsTrackNos: o.logisticsTrackNos??[],
-            logisticsCarrier:  o.logisticsCarrier??'',
+            salesPlatform:     String(o.salesPlatform??''),   // numeric code e.g. "10"
+            salesPlatformName: o.salesPlatformName??'',       // name if available
+            logisticsChannel:  o.logisticsChannel??'',        // channel code e.g. "Upload_Shipping_Label"
+            logisticsCarrier:  o.logisticsCarrier??'',        // REAL carrier name e.g. "Mercado Envios"
+            logisticsTrackNo:  trackNo,                       // primary track no
+            logisticsTrackNos: trackNos,                      // all track nos
+            storeName:         o.storeName??'',               // store name e.g. "GRM033"
             receiver:          o.receiver??'',
             telephone:         o.telephone??'',
             companyName:       o.companyName??'',
@@ -123,21 +167,21 @@ export async function POST(req: NextRequest) {
             addressOne:        o.addressOne??'',
             addressTwo:        o.addressTwo??'',
             whCode:            o.whCode??'',
+            referOrderNo:      o.referOrderNo??'',
+            platformOrderNo:   o.platformOrderNo??'',
             orderCreateTime:   o.orderCreateTime??'',
             outboundTime:      o.outboundTime??'',
             canceledTime:      o.canceledTime??'',
             interceptTime:     o.interceptTime??'',
+            exceptionDesc:     o.exceptionDesc??'',
             remark:            o.remark??'',
-            referOrderNo:      o.referOrderNo??'',
-            platformOrderNo:   o.platformOrderNo??'',
             costTotal:         o.costTotal??0,
             costCurrencyCode:  o.costCurrencyCode??'',
-            exceptionDesc:     o.exceptionDesc??'',
-            productList:       (o.productList??[]).map((p:any)=>({sku:p.sku,productName:p.productName,quantity:p.quantity})),
-            expressList:       (o.expressList??[]).map((e:any)=>({trackNo:e.trackNo,weight:e.weight,length:e.length,width:e.width,height:e.height,pkgSkuNumInfo:e.pkgSkuNumInfo})),
+            productList,
+            expressList,
           },
         })
-        if(r==='created')c++; else if(r==='updated')c++; else s++
+        if(r==='created')c++; else s++
       }
       results.outbound = {created:c,skipped:s}
     } catch(e:any) { results.outbound = {created:0,skipped:0,error:e.message} }
