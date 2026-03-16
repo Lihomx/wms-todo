@@ -19,16 +19,16 @@ async function omsPost(appKey:string,appSecret:string,endpoint:string,data:Recor
   return json.data??json
 }
 
-async function fetchPages(appKey:string,appSecret:string,endpoint:string,params:Record<string,any>={},maxPageSize=50): Promise<any[]> {
+async function fetchPages(appKey:string,appSecret:string,endpoint:string,params:Record<string,any>={},maxPageSize=50,maxPages=5): Promise<any[]> {
   const all:any[]=[]
   let page=1
-  while(true){
+  while(page<=maxPages){
     const data=await omsPost(appKey,appSecret,endpoint,{...params,page,pageSize:maxPageSize})
     const items:any[]=Array.isArray(data)?data:(data?.list??data?.records??data?.rows??[])
     all.push(...items)
     const total=Number(data?.total??data?.totalCount??0)
     if(items.length<maxPageSize||(total>0&&all.length>=total)) break
-    page++; await new Promise(r=>setTimeout(r,300))
+    page++
   }
   return all
 }
@@ -54,7 +54,9 @@ async function upsert(supabase:any, tenantId:string, customerCode:string, todo:{
 
 export async function POST(req: NextRequest) {
   try {
-    const { clientId, customerCode } = await req.json()
+    const body = await req.json()
+    const { clientId, customerCode } = body
+    const syncType = body.syncType ?? 'all'  // 'all'|'outbound'|'inbound'|'returns'|'inventory'
     if (!clientId) return NextResponse.json({ error: '缺少 clientId' }, { status: 400 })
 
     const supabase = getSupabaseAdminClient()
