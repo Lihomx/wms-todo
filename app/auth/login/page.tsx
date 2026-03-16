@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
 
 export default function LoginPage() {
@@ -7,44 +8,25 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
-  const [debug,    setDebug]    = useState('')
   const [showPwd,  setShowPwd]  = useState(false)
+  const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true); setError(''); setDebug('')
-
-    const supabase = getSupabaseBrowserClient()
-    setDebug('正在登录...')
-
-    const { data, error: err } = await supabase.auth.signInWithPassword({
+    setLoading(true); setError('')
+    
+    const { error: err } = await getSupabaseBrowserClient().auth.signInWithPassword({
       email: email.trim(),
       password,
     })
-
+    
     if (err) {
       setError(err.message === 'Invalid login credentials' ? '邮箱或密码错误' : err.message)
-      setDebug(`登录失败: ${err.message}`)
       setLoading(false)
       return
     }
-
-    setDebug(`登录成功! user=${data.user?.email}, session=${data.session ? '有' : '无'}`)
-
-    // Verify session was saved
-    await new Promise(r => setTimeout(r, 300))
-    const { data: check } = await supabase.auth.getSession()
-    setDebug(prev => prev + `\ngetSession后: ${check.session ? '有session ✅' : '无session ❌'}`)
-
-    if (!check.session) {
-      setError('Session未能保存，请检查浏览器设置（是否禁用了localStorage？）')
-      setLoading(false)
-      return
-    }
-
-    setDebug(prev => prev + '\n跳转中...')
-    await new Promise(r => setTimeout(r, 500))
-    window.location.href = '/warehouse/dashboard'
+    
+    router.push('/warehouse/dashboard')
   }
 
   const inp: React.CSSProperties = {
@@ -56,7 +38,7 @@ export default function LoginPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Segoe UI',system-ui,-apple-system,sans-serif" }}>
-      <div style={{ width: '100%', maxWidth: '400px', padding: '0 20px' }}>
+      <div style={{ width: '100%', maxWidth: '380px', padding: '0 20px' }}>
         <div style={{ textAlign: 'center' as const, marginBottom: '32px' }}>
           <div style={{ width: '56px', height: '56px', borderRadius: '14px', background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', margin: '0 auto 14px', boxShadow: '0 4px 14px rgba(37,99,235,0.3)' }}>🏭</div>
           <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>海外仓 WMS</h1>
@@ -84,14 +66,8 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div style={{ padding: '10px 12px', borderRadius: '7px', marginBottom: '12px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '13px' }}>
+              <div style={{ padding: '10px 12px', borderRadius: '7px', marginBottom: '16px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '13px' }}>
                 ⚠️ {error}
-              </div>
-            )}
-
-            {debug && (
-              <div style={{ padding: '10px 12px', borderRadius: '7px', marginBottom: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', fontSize: '12px', fontFamily: 'monospace', whiteSpace: 'pre-wrap' as const }}>
-                {debug}
               </div>
             )}
 
@@ -102,10 +78,13 @@ export default function LoginPage() {
               fontSize: '14px', fontWeight: 600,
               cursor: loading ? 'not-allowed' : 'pointer',
             }}>
-              {loading ? '处理中...' : '登录'}
+              {loading ? '登录中...' : '登录'}
             </button>
           </form>
         </div>
+        <p style={{ textAlign: 'center' as const, marginTop: '16px', fontSize: '12px', color: '#94a3b8' }}>
+          没有账号？请联系管理员在 Supabase 后台创建
+        </p>
       </div>
     </div>
   )

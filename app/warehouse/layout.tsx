@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
 
 const NAV = [
@@ -24,12 +25,10 @@ const NAV = [
 export default function WarehouseLayout({ children }: { children: React.ReactNode }) {
   const path   = usePathname()
   const router = useRouter()
-
   const [authChecked, setAuthChecked] = useState(false)
 
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient()
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    getSupabaseBrowserClient().auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         router.push('/auth/login')
       } else {
@@ -39,10 +38,10 @@ export default function WarehouseLayout({ children }: { children: React.ReactNod
   }, [router])
 
   const handleLogout = async () => {
-    const supabase = getSupabaseBrowserClient()
-    await supabase.auth.signOut()
+    await getSupabaseBrowserClient().auth.signOut()
     router.push('/auth/login')
   }
+
   if (!authChecked) {
     return <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '14px' }}>加载中...</div>
   }

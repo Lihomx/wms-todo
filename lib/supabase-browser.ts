@@ -1,16 +1,15 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 
-// DO NOT cache the client - always create fresh to avoid stale session issues
-export function getSupabaseBrowserClient(): SupabaseClient {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      auth: {
-        persistSession: true,
-        storageKey: 'wms-auth',
-        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-      }
-    }
-  )
+// Singleton - one instance per browser session
+// Uses default storage key (sb-<ref>-auth-token) so sessions persist correctly
+let client: ReturnType<typeof createClient> | null = null
+
+export function getSupabaseBrowserClient() {
+  if (!client) {
+    client = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+  }
+  return client
 }
