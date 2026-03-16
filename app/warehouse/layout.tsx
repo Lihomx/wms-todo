@@ -25,11 +25,28 @@ export default function WarehouseLayout({ children }: { children: React.ReactNod
   const path   = usePathname()
   const router = useRouter()
 
+  const [authChecked, setAuthChecked] = useState(false)
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        router.push('/auth/login')
+      } else {
+        setAuthChecked(true)
+      }
+    })
+  }, [router])
+
   const handleLogout = async () => {
     const supabase = getSupabaseBrowserClient()
     await supabase.auth.signOut()
     router.push('/auth/login')
   }
+  if (!authChecked) {
+    return <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '14px' }}>加载中...</div>
+  }
+
   return (
     <div style={{display:'flex',height:'100vh',background:'#f8fafc',color:'#0f172a',fontFamily:"'Segoe UI',system-ui,-apple-system,sans-serif"}}>
       {/* Sidebar */}
