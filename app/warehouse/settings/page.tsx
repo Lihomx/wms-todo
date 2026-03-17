@@ -1,16 +1,14 @@
 'use client'
-import React from 'react'
-import React from 'react'
 import { useState, useEffect } from 'react'
 
 type Theme = 'light' | 'dark'
 
 function WarehouseAddress() {
-  const [form, setForm] = React.useState<Record<string,string>>({})
-  const [saving, setSaving] = React.useState(false)
-  const [msg, setMsg] = React.useState('')
+  const [form, setForm] = useState<Record<string,string>>({})
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState('')
 
-  React.useEffect(()=>{
+  useEffect(()=>{
     fetch('/api/warehouse-settings').then(r=>r.json()).then(d=>setForm(d.settings||{}))
   },[])
 
