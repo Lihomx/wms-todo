@@ -1,7 +1,51 @@
 'use client'
+import React from 'react'
+import React from 'react'
 import { useState, useEffect } from 'react'
 
 type Theme = 'light' | 'dark'
+
+function WarehouseAddress() {
+  const [form, setForm] = React.useState<Record<string,string>>({})
+  const [saving, setSaving] = React.useState(false)
+  const [msg, setMsg] = React.useState('')
+
+  React.useEffect(()=>{
+    fetch('/api/warehouse-settings').then(r=>r.json()).then(d=>setForm(d.settings||{}))
+  },[])
+
+  const save = async()=>{
+    setSaving(true)
+    await fetch('/api/warehouse-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(form)})
+    setMsg('✅ 保存成功'); setSaving(false)
+    setTimeout(()=>setMsg(''),2000)
+  }
+
+  const inp:React.CSSProperties={width:'100%',padding:'9px 12px',borderRadius:'7px',background:'#f8fafc',border:'1px solid #e2e8f0',color:'#0f172a',fontSize:'13px',outline:'none',boxSizing:'border-box' as const}
+  const lbl=(t:string)=><label style={{fontSize:'11px',fontWeight:600,color:'#475569',display:'block',marginBottom:'4px'}}>{t}</label>
+
+  return (
+    <div style={{background:'#fff',border:'1px solid #e2e8f0',borderRadius:'10px',padding:'20px',marginBottom:'14px',boxShadow:'0 1px 3px rgba(0,0,0,0.05)'}}>
+      <div style={{fontSize:'14px',fontWeight:600,color:'#0f172a',marginBottom:'14px'}}>🏭 仓库发件地址（Dirección de origen）</div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
+        <div>{lbl('联系人')}<input value={form.origin_name||''} onChange={e=>setForm(f=>({...f,origin_name:e.target.value}))} placeholder="ZHENYUAN LI" style={inp}/></div>
+        <div>{lbl('电话')}<input value={form.origin_phone||''} onChange={e=>setForm(f=>({...f,origin_phone:e.target.value}))} placeholder="5514296243" style={inp}/></div>
+        <div>{lbl('邮箱')}<input value={form.origin_email||''} onChange={e=>setForm(f=>({...f,origin_email:e.target.value}))} style={inp}/></div>
+        <div>{lbl('公司名称')}<input value={form.origin_company||''} onChange={e=>setForm(f=>({...f,origin_company:e.target.value}))} placeholder="LIHO-CHIU" style={inp}/></div>
+        <div style={{gridColumn:'1/-1'}}>{lbl('地址')}<input value={form.origin_address||''} onChange={e=>setForm(f=>({...f,origin_address:e.target.value}))} style={inp}/></div>
+        <div>{lbl('邮编')}<input value={form.origin_cp||''} onChange={e=>setForm(f=>({...f,origin_cp:e.target.value}))} style={inp}/></div>
+        <div>{lbl('Colonia')}<input value={form.origin_colonia||''} onChange={e=>setForm(f=>({...f,origin_colonia:e.target.value}))} style={inp}/></div>
+        <div>{lbl('城市')}<input value={form.origin_city||''} onChange={e=>setForm(f=>({...f,origin_city:e.target.value}))} style={inp}/></div>
+        <div>{lbl('州')}<input value={form.origin_state||''} onChange={e=>setForm(f=>({...f,origin_state:e.target.value}))} style={inp}/></div>
+      </div>
+      {msg&&<div style={{fontSize:'12px',color:'#16a34a',marginBottom:'8px'}}>{msg}</div>}
+      <button onClick={save} disabled={saving} style={{padding:'8px 18px',borderRadius:'7px',background:saving?'#e2e8f0':'#2563eb',border:'none',color:saving?'#94a3b8':'white',fontWeight:600,fontSize:'13px',cursor:saving?'not-allowed':'pointer'}}>
+        {saving?'保存中...':'保存地址'}
+      </button>
+    </div>
+  )
+}
+
 
 export default function WarehouseSettings() {
   const [theme, setTheme] = useState<Theme>('light')
@@ -65,6 +109,9 @@ export default function WarehouseSettings() {
           {saved && <div style={{padding:'8px 12px',borderRadius:'7px',background:'#f0fdf4',border:'1px solid #bbf7d0',color:'#16a34a',fontSize:'12px'}}>✅ 界面风格已保存</div>}
           <p style={{fontSize:'12px',color:'#94a3b8',marginTop:'10px'}}>深色模式需刷新页面生效</p>
         </div>
+
+        {/* Warehouse origin address */}
+        <WarehouseAddress />
 
         {/* System info */}
         <div style={card}>

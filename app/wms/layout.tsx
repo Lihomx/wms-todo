@@ -9,6 +9,9 @@ const NAV = [
     { href: '/wms/dashboard', icon: '⊞', label: '首页' },
     { href: '/wms/todos',     icon: '✓', label: '全部待办' },
   ]},
+  { group: '打单系统', items: [
+    { href: '/wms/shipping', icon: '📦', label: 'Crear envío' },
+  ]},
   { group: '领星数据', items: [
     { href: '/wms/oms-data',  icon: '◈', label: 'OMS 数据总览' },
     { href: '/wms/sync',      icon: '↻', label: '数据同步' },

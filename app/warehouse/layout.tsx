@@ -9,6 +9,9 @@ const NAV = [
     { href:'/warehouse/dashboard', icon:'⊞', label:'仓库总览' },
     { href:'/warehouse/todos',     icon:'✓', label:'全部待办' },
   ]},
+  { group: '打单系统', items: [
+    { href:'/warehouse/shipping', icon:'🚚', label:'发货记录' },
+  ]},
   { group: '管理', items: [
     { href:'/warehouse/clients',   icon:'⊙', label:'客户管理' },
     { href:'/warehouse/staff',     icon:'⊛', label:'员工管理' },
