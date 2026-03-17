@@ -90,3 +90,19 @@ INSERT INTO warehouse_settings (key, value) VALUES
 ON CONFLICT (key) DO NOTHING;
 
 ALTER TABLE warehouse_settings DISABLE ROW LEVEL SECURITY;
+
+-- Client accounts table (managed by warehouse admin)
+-- Links Supabase Auth users to specific OMS clients
+CREATE TABLE IF NOT EXISTS client_accounts (
+  id            UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  customer_code TEXT NOT NULL REFERENCES oms_clients(customer_code) ON DELETE CASCADE,
+  display_name  TEXT NOT NULL,
+  email         TEXT NOT NULL,
+  role          TEXT NOT NULL DEFAULT 'client_operator',
+  is_active     BOOLEAN DEFAULT TRUE,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_client_accounts_email ON client_accounts(email);
+CREATE INDEX IF NOT EXISTS idx_client_accounts_customer ON client_accounts(customer_code);
+ALTER TABLE client_accounts DISABLE ROW LEVEL SECURITY;

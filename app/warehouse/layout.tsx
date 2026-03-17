@@ -14,6 +14,7 @@ const NAV = [
   ]},
   { group: '管理', items: [
     { href:'/warehouse/clients',   icon:'⊙', label:'客户管理' },
+    { href:'/warehouse/accounts',  icon:'👤', label:'客户账号' },
     { href:'/warehouse/staff',     icon:'⊛', label:'员工管理' },
   ]},
   { group: '领星数据', items: [

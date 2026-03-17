@@ -25,13 +25,16 @@ export default function WmsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router   = useRouter()
   const [user, setUser] = useState<any>(null)
+  const [customerCode, setCustomerCode] = useState('')
 
   useEffect(()=>{
-    const supabase = getSupabaseBrowserClient()
-    supabase.auth.getSession().then(({data:{session}})=>{
-      setUser(session?.user ?? null)
+    fetch('/api/auth-info').then(r=>r.json()).then(info=>{
+      if(info.role==='guest'){ router.push('/auth/login'); return }
+      if(info.role==='warehouse_admin'){ router.push('/warehouse/dashboard'); return }
+      setUser(info)
+      setCustomerCode(info.customerCode||'')
     })
-  },[])
+  },[router])
 
   const handleLogout = async () => {
     const supabase = getSupabaseBrowserClient()
