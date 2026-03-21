@@ -93,6 +93,16 @@ export async function POST(req: NextRequest) {
     } catch(e:any) { results.inbound = {created:0,skipped:0,error:e.message} }
 
     // Sync outbound orders (use detail API to get productList, expressList, storeName)
+
+  const PLATFORM_MAP: Record<string,string> = {
+    '1':'AliExpress','2':'Amazon','3':'Amazon VC','4':'eBay','5':'Lazada',
+    '6':'Shopee','7':'Shopify','8':'Walmart','9':'Wayfair','10':'MercadoLibre',
+    '11':'Wish','12':'Other','14':'Woocommerce','15':'HomeDepot','16':'Overstock',
+    '17':'Joom','18':'Tophatter','20':'Shoplazza','21':'Jumia','22':'TikTok',
+    '23':'Xshoppy','24':'Shopline','25':'Allegro','27':'Etsy','28':'Allvalue',
+    '29':'Fnac','30':'Rakuten','31':'Shoplus','32':'Sears','33':'Shein','34':'Temu','35':'Yahoo',
+  }
+
     try {
       // Step 1: get all order numbers from pageList
       const listOrders = await fetchPages(appKey, appSecret, '/v1/outboundOrder/pageList', {}, 50, 5)
@@ -134,11 +144,15 @@ export async function POST(req: NextRequest) {
           length: e.length??0, width: e.width??0, height: e.height??0,
           pkgSkuNumInfo: e.pkgSkuNumInfo??'',
         }))
-        // logisticsTrackNos - prefer expressList trackNos, fallback to logisticsTrackNos field
-        const trackNos = expressList.length>0
-          ? expressList.map((e:any)=>e.trackNo).filter(Boolean)
-          : (o.logisticsTrackNos??[])
-        const trackNo = trackNos[0] ?? o.logisticsTrackNo ?? ''
+        // Track numbers: expressList is authoritative, fallback to top-level fields
+        // Note: for 待处理 orders, expressList may be populated in detail API
+        const expressTrackNos = expressList.map((e:any)=>e.trackNo).filter(Boolean)
+        const trackNos = expressTrackNos.length>0
+          ? expressTrackNos
+          : (Array.isArray(o.logisticsTrackNos)&&o.logisticsTrackNos.length>0
+              ? o.logisticsTrackNos.filter(Boolean)
+              : (o.logisticsTrackNo ? [o.logisticsTrackNo] : []))
+        const trackNo = trackNos[0] ?? ''
 
         const r=await upsert(supabase,DEFAULT_TENANT,code,{
           title:`【一件代发】${no}`,category:'出库作业',priority:2,
@@ -147,13 +161,21 @@ export async function POST(req: NextRequest) {
           description:`${o.salesPlatform??'-'} | ${o.logisticsCarrier||o.logisticsChannel||'-'} | ${o.receiver??'-'}`,
           extra_data:{
             outboundOrderNo:   no,
-            salesPlatform:     String(o.salesPlatform??''),   // numeric code e.g. "10"
-            salesPlatformName: o.salesPlatformName??'',       // name if available
-            logisticsChannel:  o.logisticsChannel??'',        // channel code e.g. "Upload_Shipping_Label"
-            logisticsCarrier:  o.logisticsCarrier??'',        // REAL carrier name e.g. "Mercado Envios"
-            logisticsTrackNo:  trackNo,                       // primary track no
-            logisticsTrackNos: trackNos,                      // all track nos
-            storeName:         o.storeName??'',               // store name e.g. "GRM033"
+            // Platform: store both code and name
+            salesPlatform:     String(o.salesPlatform??''),
+            salesPlatformName: PLATFORM_MAP[String(o.salesPlatform??'')] ?? o.salesPlatformName ?? String(o.salesPlatform??''),
+            // Logistics
+            logisticsChannel:  o.logisticsChannel??'',
+            logisticsCarrier:  o.logisticsCarrier??'',
+            // Track no: listAPI has it even when expressList is empty (e.g. 待处理 status)
+            logisticsTrackNo:  trackNo,
+            logisticsTrackNos: trackNos,
+            // Order info
+            storeName:         o.storeName??'',
+            subOrderTypeName:  o.subOrderTypeName??'',   // 订单品种类型 e.g. "单品单件"
+            statusName:        o.statusName??'',          // 状态中文名
+            orderTypeName:     o.orderTypeName??'',
+            // Receiver
             receiver:          o.receiver??'',
             telephone:         o.telephone??'',
             companyName:       o.companyName??'',
@@ -166,17 +188,23 @@ export async function POST(req: NextRequest) {
             postCode:          o.postCode??'',
             addressOne:        o.addressOne??'',
             addressTwo:        o.addressTwo??'',
+            // Warehouse
             whCode:            o.whCode??'',
+            whName:            o.whName??'',
+            // Order refs
             referOrderNo:      o.referOrderNo??'',
             platformOrderNo:   o.platformOrderNo??'',
+            // Times
             orderCreateTime:   o.orderCreateTime??'',
             outboundTime:      o.outboundTime??'',
             canceledTime:      o.canceledTime??'',
             interceptTime:     o.interceptTime??'',
             exceptionDesc:     o.exceptionDesc??'',
             remark:            o.remark??'',
+            // Cost
             costTotal:         o.costTotal??0,
             costCurrencyCode:  o.costCurrencyCode??'',
+            // Products & packages (from detail API)
             productList,
             expressList,
           },

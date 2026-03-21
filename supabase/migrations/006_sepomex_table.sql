@@ -106,3 +106,35 @@ CREATE TABLE IF NOT EXISTS client_accounts (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_client_accounts_email ON client_accounts(email);
 CREATE INDEX IF NOT EXISTS idx_client_accounts_customer ON client_accounts(customer_code);
 ALTER TABLE client_accounts DISABLE ROW LEVEL SECURITY;
+
+-- Scan settings table
+CREATE TABLE IF NOT EXISTS scan_settings (
+  id           SERIAL PRIMARY KEY,
+  tenant_id    UUID REFERENCES tenants(id),
+  name         TEXT NOT NULL DEFAULT '默认扫描规则',
+  is_active    BOOLEAN DEFAULT TRUE,
+  free_mode    BOOLEAN DEFAULT FALSE,  -- skip SKU validation
+  -- JSON extraction rules (applied in order)
+  extract_rules JSONB DEFAULT '[
+    {"type":"json_field","field":"id","label":"提取JSON中id字段"},
+    {"type":"json_field","field":"reference_id","label":"提取JSON中reference_id字段"},
+    {"type":"regex","pattern":"([\\\\w/]+)","group":1,"label":"提取字母数字/斜杠组合"}
+  ]',
+  -- Post-extraction transform
+  prefix_strip  TEXT DEFAULT '',       -- strip this prefix
+  suffix_strip  TEXT DEFAULT '',       -- strip this suffix
+  regex_replace TEXT DEFAULT '',       -- regex to replace in extracted value
+  regex_with    TEXT DEFAULT '',       -- replace with
+  -- SKU matching
+  sku_prefix_match BOOLEAN DEFAULT TRUE,  -- allow prefix match (SKU前缀匹配)
+  sku_exact_match  BOOLEAN DEFAULT FALSE, -- require exact match
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE scan_settings DISABLE ROW LEVEL SECURITY;
+
+-- Insert default rule
+INSERT INTO scan_settings (name, is_active, free_mode, sku_prefix_match)
+VALUES ('默认扫描规则', TRUE, FALSE, TRUE)
+ON CONFLICT DO NOTHING;

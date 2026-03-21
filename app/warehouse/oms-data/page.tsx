@@ -37,6 +37,12 @@ export default function WarehouseOmsDataPage() {
 
   return (
     <div style={{flex:1,overflowY:'auto' as const,background:'#f8fafc',padding:'28px 32px'}}>
+      <div style={{marginBottom:'14px',padding:'10px 14px',borderRadius:'8px',background:'#eff6ff',border:'1px solid #bfdbfe',fontSize:'12px',color:'#1e40af',lineHeight:1.7}}>
+        <strong>ℹ️ 说明：</strong>此页面直接调用领星API查看实时总数（不写入本地数据库）。
+        要同步出库单明细数据（物流跟踪号、收件人等），请前往
+        <a href="/warehouse/sync" style={{color:'#2563eb',marginLeft:'4px',fontWeight:600}}>数据同步 →</a>
+        按客户点击「🚚 一件代发 ↻ 同步」。
+      </div>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'22px'}}>
         <div>
           <h1 style={{fontSize:'20px',fontWeight:700,color:'#0f172a'}}>OMS 数据总览</h1>
