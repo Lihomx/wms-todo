@@ -1,9 +1,9 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
 
-export default function ClientLoginPage() {
+function ClientLoginInner() {
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
   const [loading,  setLoading]  = useState(false)
@@ -102,5 +102,13 @@ export default function ClientLoginPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function ClientLoginPage() {
+  return (
+    <Suspense fallback={<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#f8fafc',color:'#94a3b8',fontSize:'14px'}}>加载中...</div>}>
+      <ClientLoginInner />
+    </Suspense>
   )
 }
