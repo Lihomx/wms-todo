@@ -11,12 +11,12 @@ export default function ClientTodos() {
   const [statusFilter, setStatusFilter] = useState('')
 
   useEffect(()=>{
-    fetch('/api/auth-info').then(r=>r.json()).then(info=>{
-      const code = info.customerCode; if(!code) return
-      const p = new URLSearchParams({pageSize:'200',customerCode:code})
-      if(statusFilter) p.set('status',statusFilter)
-      fetch(`/api/todos?${p}`).then(r=>r.json()).then(d=>{ setTodos(d.todos??[]); setLoading(false) })
-    })
+    const getCode = () => { try{const s=sessionStorage.getItem('wms_client_session');if(s){const p=JSON.parse(s);if(p.customerCode)return p.customerCode}}catch{} return '' }
+    const code = getCode()
+    if(!code){ fetch('/api/auth-info').then(r=>r.json()).then(info=>{ if(!info.customerCode) return; const p=new URLSearchParams({pageSize:'200',customerCode:info.customerCode}); if(statusFilter)p.set('status',statusFilter); fetch(`/api/todos?${p}`).then(r=>r.json()).then(d=>{setTodos(d.todos??[]);setLoading(false)}) }); return }
+    const p = new URLSearchParams({pageSize:'200',customerCode:code})
+    if(statusFilter) p.set('status',statusFilter)
+    fetch(`/api/todos?${p}`).then(r=>r.json()).then(d=>{setTodos(d.todos??[]);setLoading(false)})
   },[statusFilter])
 
   return (

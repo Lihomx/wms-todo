@@ -190,7 +190,12 @@ export default function ClientsPage() {
                 {/* Action buttons - always visible */}
                 {editingId !== c.id && (
                   <div style={{display:'flex',gap:'6px',flexShrink:0,flexWrap:'wrap' as const}}>
-                    <button onClick={()=>window.open(`/client/dashboard?customerCode=${c.customer_code}`, '_blank')} style={btn('#2563eb','#eff6ff','#bfdbfe')}>进入OMS客户端</button>
+                    <button onClick={async()=>{
+                      const r = await fetch('/api/impersonate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({customerCode:c.customer_code})})
+                      const d = await r.json()
+                      if(d.error){ alert('生成访问令牌失败: '+d.error); return }
+                      window.open(`/client/login?token=${d.token}`, '_blank')
+                    }} style={btn('#2563eb','#eff6ff','#bfdbfe')}>进入OMS客户端</button>
                     {c.auth_status===1 && (
                       <button onClick={()=>syncClient(c)} disabled={syncing===c.id} style={{...btn('#16a34a','#f0fdf4','#bbf7d0'),opacity:syncing===c.id?0.6:1}}>
                         {syncing===c.id?'同步中...':'↻ 同步数据'}

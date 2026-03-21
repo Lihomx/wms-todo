@@ -3,7 +3,21 @@ import { getSupabaseAdminClient } from '@/lib/supabase-server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Support impersonation via header (sent from client-side fetch with sessionStorage data)
+  const impCustomer = req.headers.get('X-Impersonate-Customer')
+  const impName     = req.headers.get('X-Impersonate-Name')
+  if (impCustomer) {
+    return NextResponse.json({
+      role:         'client',
+      customerCode: impCustomer,
+      customerName: impName || impCustomer,
+      displayName:  impName || impCustomer,
+      email:        `${impCustomer.toLowerCase()}@client`,
+      isActive:     true,
+      isImpersonated: true,
+    })
+  }
   // Get current user from session
   const cookieStore = cookies()
   const supabase = createServerClient(

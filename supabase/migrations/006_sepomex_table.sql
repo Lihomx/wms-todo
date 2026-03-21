@@ -138,3 +138,15 @@ ALTER TABLE scan_settings DISABLE ROW LEVEL SECURITY;
 INSERT INTO scan_settings (name, is_active, free_mode, sku_prefix_match)
 VALUES ('默认扫描规则', TRUE, FALSE, TRUE)
 ON CONFLICT DO NOTHING;
+
+-- Temporary impersonation tokens for warehouse admin -> client portal access
+CREATE TABLE IF NOT EXISTS impersonate_tokens (
+  token        TEXT PRIMARY KEY,
+  customer_code TEXT NOT NULL,
+  customer_name TEXT,
+  expires_at   TIMESTAMPTZ NOT NULL,
+  used         BOOLEAN DEFAULT FALSE,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE impersonate_tokens DISABLE ROW LEVEL SECURITY;
+-- Auto-cleanup: tokens expire after 5 minutes

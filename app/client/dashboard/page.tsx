@@ -8,16 +8,21 @@ export default function ClientDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(()=>{
-    fetch('/api/auth-info').then(r=>r.json()).then(async info=>{
+    const getCode = () => {
+      try { const s=sessionStorage.getItem('wms_client_session'); if(s){const p=JSON.parse(s);if(p.customerCode)return p} } catch{}
+      return null
+    }
+    const loadData = async (info: any) => {
       setInfo(info)
       const code = info.customerCode
       if(!code) return
-      const [tr] = await Promise.all([
-        fetch(`/api/todos?pageSize=200&customerCode=${code}`).then(r=>r.json()),
-      ])
+      const tr = await fetch(`/api/todos?pageSize=200&customerCode=${code}`).then(r=>r.json())
       setTodos(tr.todos??[])
       setLoading(false)
-    })
+    }
+    const imp = getCode()
+    if(imp) { loadData(imp); return }
+    fetch('/api/auth-info').then(r=>r.json()).then(loadData)
   },[])
 
   const pending  = todos.filter(t=>t.status===0).length

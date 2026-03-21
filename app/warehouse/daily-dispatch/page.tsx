@@ -13,7 +13,7 @@ interface CarrierRule {
 }
 
 const CARRIERS: CarrierRule[] = [
-  { name:'MercadoLibre', color:'#d97706', bg:'#fffbeb', prefixes:['465'],      minLen:10, maxLen:13, icon:'🟡' },
+  { name:'MercadoLibre', color:'#d97706', bg:'#fffbeb', prefixes:['46'],       minLen:10, maxLen:13, icon:'🟡' },
   { name:'J&T Express',  color:'#dc2626', bg:'#fef2f2', prefixes:['GC','JMX'], minLen:14, maxLen:19, icon:'🔴' },
   { name:'iMile',        color:'#7c3aed', bg:'#f5f3ff', prefixes:['48','GC'],  minLen:13, maxLen:19, icon:'🟣' },
   { name:'其他',          color:'#64748b', bg:'#f8fafc', prefixes:[],           minLen:0,  maxLen:999,icon:'⚪' },

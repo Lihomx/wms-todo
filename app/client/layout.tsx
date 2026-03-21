@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
 
-interface AuthInfo { role:string; customerCode:string; customerName:string; displayName:string; email:string; isActive:boolean }
+interface AuthInfo { role:string; customerCode:string; customerName:string; displayName:string; email:string; isActive:boolean; isImpersonated?:boolean }
 
 const NAV = [
   { href:'/client/dashboard', icon:'⊞', label:'总览' },
@@ -21,6 +21,20 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [ready, setReady] = useState(false)
 
   useEffect(()=>{
+    // First check sessionStorage for impersonation session (warehouse admin direct access)
+    try {
+      const raw = sessionStorage.getItem('wms_client_session')
+      if (raw) {
+        const session = JSON.parse(raw)
+        if (session.customerCode) {
+          setInfo({ role:'client', ...session })
+          setReady(true)
+          return
+        }
+      }
+    } catch {}
+
+    // Fall back to Supabase auth (normal client login)
     fetch('/api/auth-info').then(r=>r.json()).then(d=>{
       if (d.role === 'guest') { router.push('/client/login'); return }
       if (d.role === 'warehouse_admin') { router.push('/warehouse/dashboard'); return }
@@ -30,7 +44,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   },[router])
 
   const logout = async()=>{
-    await getSupabaseBrowserClient().auth.signOut()
+    // Clear impersonation session
+    sessionStorage.removeItem('wms_client_session')
+    // Also sign out Supabase if needed
+    try { await getSupabaseBrowserClient().auth.signOut() } catch {}
     router.push('/client/login')
   }
 
@@ -49,6 +66,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
               <div style={{fontSize:'10px',color:'#2563eb',marginTop:'1px',fontWeight:500}}>{info?.customerCode} · {info?.customerName}</div>
             </div>
           </div>
+          {info?.isImpersonated && (
+            <div style={{marginTop:'8px',padding:'4px 8px',borderRadius:'5px',background:'#fffbeb',border:'1px solid #fde68a',fontSize:'10px',color:'#92400e',display:'flex',alignItems:'center',gap:'4px'}}>
+              🔑 仓库管理员访问
+            </div>
+          )}
         </div>
 
         {/* Nav */}
@@ -68,7 +90,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         {/* User */}
         <div style={{padding:'10px 8px',borderTop:'1px solid #f1f5f9'}}>
           <div style={{padding:'8px 10px',borderRadius:'6px',background:'#f8fafc',marginBottom:'4px'}}>
-            <div style={{fontSize:'12px',fontWeight:600,color:'#0f172a',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{info?.displayName}</div>
+            <div style={{fontSize:'12px',fontWeight:600,color:'#0f172a',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{info?.displayName || info?.customerName}</div>
             <div style={{fontSize:'10px',color:'#94a3b8',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{info?.email}</div>
           </div>
           <button onClick={logout} style={{width:'100%',display:'flex',alignItems:'center',gap:'8px',padding:'7px 10px',borderRadius:'6px',background:'none',border:'none',color:'#94a3b8',fontSize:'12px',cursor:'pointer',textAlign:'left' as const}}>

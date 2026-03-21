@@ -7,13 +7,17 @@ export default function ClientData() {
   const [customerCode, setCustomerCode] = useState('')
 
   useEffect(()=>{
-    fetch('/api/auth-info').then(r=>r.json()).then(info=>{
-      setCustomerCode(info.customerCode||'')
-      if(!info.customerCode) return
-      fetch(`/api/lingxing/data?type=all&clientId=auto&customerCode=${info.customerCode}`)
+    const getCode = () => { try{const s=sessionStorage.getItem('wms_client_session');if(s){const p=JSON.parse(s);if(p.customerCode)return p.customerCode}}catch{} return '' }
+    const code = getCode()
+    const load = (c:string) => {
+      if(!c) return
+      setCustomerCode(c)
+      fetch(`/api/lingxing/data?type=all&customerCode=${c}`)
         .then(r=>r.json()).then(d=>{ setSummary(d.summary||d); setLoading(false) })
         .catch(()=>setLoading(false))
-    })
+    }
+    if(code) { load(code); return }
+    fetch('/api/auth-info').then(r=>r.json()).then(info=>load(info.customerCode||''))
   },[])
 
   const card:React.CSSProperties={background:'#fff',border:'1px solid #e2e8f0',borderRadius:'10px',padding:'20px',boxShadow:'0 1px 3px rgba(0,0,0,0.05)'}

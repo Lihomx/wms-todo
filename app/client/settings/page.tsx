@@ -1,6 +1,12 @@
 'use client'
 import { useState, useEffect } from 'react'
 
+function getImpersonatedCode(): string {
+  if (typeof window === 'undefined') return ''
+  try { const s=sessionStorage.getItem('wms_client_session'); if(s){const p=JSON.parse(s); if(p.customerCode) return p.customerCode} } catch {}
+  return ''
+}
+
 export default function ClientSettings() {
   const [customerCode, setCustomerCode] = useState('')
   const [clientId,     setClientId]     = useState('')
@@ -13,14 +19,17 @@ export default function ClientSettings() {
   const [lastSync,     setLastSync]     = useState('')
 
   useEffect(()=>{
-    fetch('/api/auth-info').then(r=>r.json()).then(async info=>{
-      setCustomerCode(info.customerCode||'')
-      if(!info.customerCode) return
+    const loadSettings = async (code: string) => {
+      setCustomerCode(code)
+      if (!code) return
       const r = await fetch('/api/oms-clients')
       const d = await r.json()
-      const client = (d.clients||[]).find((c:any)=>c.customer_code===info.customerCode)
+      const client = (d.clients||[]).find((c:any)=>c.customer_code===code)
       if(client){ setClientId(client.id); setAuthStatus(client.auth_status||0); setLastSync(client.last_synced_at||'') }
-    })
+    }
+    const imp = getImpersonatedCode()
+    if(imp) { loadSettings(imp); return }
+    fetch('/api/auth-info').then(r=>r.json()).then(info=>loadSettings(info.customerCode||''))
   },[])
 
   const save = async()=>{
