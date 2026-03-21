@@ -40,11 +40,13 @@ async function upsert(supabase:any, tenantId:string, customerCode:string, todo:{
 }) {
   const {data:ex}=await supabase.from('todos').select('id,customer_code').eq('tenant_id',tenantId).eq('lingxing_order_no',todo.lingxing_order_no).maybeSingle()
   if(ex) {
-    const upd: any = {}
+    const upd: any = {
+      status:      todo.status,           // Always sync latest status from OMS
+      description: todo.description,
+    }
     if(!ex.customer_code && customerCode) upd.customer_code = customerCode
-    // Always update extra_data to get latest logistics info
     if(todo.extra_data && Object.keys(todo.extra_data).length > 0) upd.extra_data = todo.extra_data
-    if(Object.keys(upd).length) await supabase.from('todos').update(upd).eq('id',ex.id)
+    await supabase.from('todos').update(upd).eq('id',ex.id)
     return 'updated'
   }
   const {error}=await supabase.from('todos').insert({tenant_id:tenantId,customer_code:customerCode,...todo})
@@ -118,7 +120,7 @@ export async function POST(req: NextRequest) {
     try {
       // Step 1: get all order numbers from pageList
       const listOrders = await fetchPages(appKey, appSecret, '/v1/outboundOrder/pageList', {}, 50, 5)
-      const activeOrders = listOrders.filter((o:any)=>![3,4].includes(o.status))
+      const activeOrders = listOrders  // sync all statuses so completed orders get updated
       
       // Step 2: fetch detail in batches of 50 to get full data
       const BATCH = 50
@@ -184,6 +186,7 @@ export async function POST(req: NextRequest) {
             storeName:         o.storeName??'',
             subOrderTypeName:  o.subOrderTypeName??'',   // 订单品种类型 e.g. "单品单件"
             statusName:        o.statusName??'',          // 状态中文名
+            apiStatus:         o.status??0,                // raw OMS status: 0=待处理,2=处理中,3=已出库,4=已取消,5=异常
             orderTypeName:     o.orderTypeName??'',
             // Receiver
             receiver:          o.receiver??'',

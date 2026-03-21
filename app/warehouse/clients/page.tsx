@@ -190,7 +190,7 @@ export default function ClientsPage() {
                 {/* Action buttons - always visible */}
                 {editingId !== c.id && (
                   <div style={{display:'flex',gap:'6px',flexShrink:0,flexWrap:'wrap' as const}}>
-                    <button onClick={()=>window.location.href=`/wms/dashboard?client=${c.customer_code}`} style={btn('#2563eb','#eff6ff','#bfdbfe')}>进入OMS客户端</button>
+                    <button onClick={()=>window.open(`/client/dashboard?customerCode=${c.customer_code}`, '_blank')} style={btn('#2563eb','#eff6ff','#bfdbfe')}>进入OMS客户端</button>
                     {c.auth_status===1 && (
                       <button onClick={()=>syncClient(c)} disabled={syncing===c.id} style={{...btn('#16a34a','#f0fdf4','#bbf7d0'),opacity:syncing===c.id?0.6:1}}>
                         {syncing===c.id?'同步中...':'↻ 同步数据'}

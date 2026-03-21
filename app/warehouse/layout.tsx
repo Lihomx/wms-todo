@@ -10,6 +10,7 @@ const NAV = [
     { href:'/warehouse/todos',     icon:'✓', label:'全部待办' },
   ]},
   { group: '打单系统', items: [
+    { href:'/warehouse/daily-dispatch', icon:'📋', label:'每日代发详情' },
     { href:'/warehouse/shipping', icon:'🚚', label:'发货记录' },
   ]},
   { group: '管理', items: [
@@ -91,9 +92,7 @@ export default function WarehouseLayout({ children }: { children: React.ReactNod
         </nav>
         {/* Bottom */}
         <div style={{padding:'10px 8px',borderTop:'1px solid #f1f5f9'}}>
-          <Link href="/wms/dashboard" style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 10px',borderRadius:'6px',textDecoration:'none',color:'#94a3b8',fontSize:'12px',background:'#f8fafc',border:'1px solid #e2e8f0',marginBottom:'5px'}}>
-            <span>🔗</span><span>OMS 客户端</span>
-          </Link>
+          
           <button onClick={handleLogout} style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 10px',borderRadius:'6px',background:'none',border:'none',color:'#94a3b8',fontSize:'12px',cursor:'pointer',width:'100%',textAlign:'left' as const}}>
             <span>↩</span><span>退出登录</span>
           </button>
