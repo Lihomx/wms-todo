@@ -35,20 +35,31 @@ const fmtDate = (d:any) => {
   catch { return String(d) }
 }
 
+// Clean MEL tracking numbers: MEL46695611578FMDOF01 -> 46695611578
+const cleanTrackNo = (raw: string): string => {
+  if (!raw) return ''
+  const r = raw.trim()
+  if (r.startsWith('MEL') && r.includes('FMDOF')) {
+    const stripped = r.replace(/^MEL/, '').replace(/FMDOF\w+$/, '')
+    if (stripped) return stripped
+  }
+  return r
+}
+
 // Helper: get tracking number with multiple fallbacks
 const getTrackNo = (e: Record<string,any>|null): string => {
   if(!e) return '-'
   // 1. expressList trackNos (most accurate - from detail API)
   const expList = e.expressList ?? []
-  const expNos = expList.map((x:any)=>x.trackNo).filter(Boolean)
+  const expNos = expList.map((x:any)=>cleanTrackNo(x.trackNo)).filter(Boolean)
   if(expNos.length > 0) return expNos.join(' / ')
   // 2. logisticsTrackNos array
   if(Array.isArray(e.logisticsTrackNos) && e.logisticsTrackNos.length > 0) {
-    const nos = e.logisticsTrackNos.filter(Boolean)
+    const nos = e.logisticsTrackNos.map(cleanTrackNo).filter(Boolean)
     if(nos.length > 0) return nos.join(' / ')
   }
   // 3. single logisticsTrackNo
-  return e.logisticsTrackNo || '-'
+  return cleanTrackNo(e.logisticsTrackNo) || '-'
 }
 
 type Col = {key:string;label:string;w:number;get:(t:Todo)=>any;excel?:string}

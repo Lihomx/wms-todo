@@ -94,6 +94,18 @@ export async function POST(req: NextRequest) {
 
     // Sync outbound orders (use detail API to get productList, expressList, storeName)
 
+  // Clean MEL tracking numbers: MEL46695611578FMDOF01 -> 46695611578
+  const cleanTrackNo = (raw: string): string => {
+    if (!raw) return ''
+    const r = raw.trim()
+    // MercadoLibre label format: MEL{trackNo}FMDOF01
+    if (r.startsWith('MEL') && r.includes('FMDOF')) {
+      const stripped = r.replace(/^MEL/, '').replace(/FMDOF\w+$/, '')
+      if (stripped) return stripped
+    }
+    return r
+  }
+
   const PLATFORM_MAP: Record<string,string> = {
     '1':'AliExpress','2':'Amazon','3':'Amazon VC','4':'eBay','5':'Lazada',
     '6':'Shopee','7':'Shopify','8':'Walmart','9':'Wayfair','10':'MercadoLibre',
@@ -144,14 +156,12 @@ export async function POST(req: NextRequest) {
           length: e.length??0, width: e.width??0, height: e.height??0,
           pkgSkuNumInfo: e.pkgSkuNumInfo??'',
         }))
-        // Track numbers: expressList is authoritative, fallback to top-level fields
-        // Note: for 待处理 orders, expressList may be populated in detail API
-        const expressTrackNos = expressList.map((e:any)=>e.trackNo).filter(Boolean)
-        const trackNos = expressTrackNos.length>0
-          ? expressTrackNos
-          : (Array.isArray(o.logisticsTrackNos)&&o.logisticsTrackNos.length>0
-              ? o.logisticsTrackNos.filter(Boolean)
-              : (o.logisticsTrackNo ? [o.logisticsTrackNo] : []))
+        // Track numbers: apply cleanTrackNo to strip MEL...FMDOF01 format
+        const expressTrackNos = expressList.map((e:any)=>e.trackNo).filter(Boolean).map(cleanTrackNo)
+        const rawListNos = Array.isArray(o.logisticsTrackNos)&&o.logisticsTrackNos.length>0
+          ? o.logisticsTrackNos.filter(Boolean).map(cleanTrackNo)
+          : (o.logisticsTrackNo ? [cleanTrackNo(o.logisticsTrackNo)] : [])
+        const trackNos = expressTrackNos.length>0 ? expressTrackNos : rawListNos
         const trackNo = trackNos[0] ?? ''
 
         const r=await upsert(supabase,DEFAULT_TENANT,code,{
