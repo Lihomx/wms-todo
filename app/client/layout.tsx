@@ -21,7 +21,13 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const [ready, setReady] = useState(false)
 
   useEffect(()=>{
-    // First check sessionStorage for impersonation session (warehouse admin direct access)
+    // Skip auth check for login page itself
+    if (path === '/client/login' || path.startsWith('/client/login')) {
+      setReady(true)
+      return
+    }
+
+    // Check sessionStorage for impersonation session (warehouse admin direct access)
     try {
       const raw = sessionStorage.getItem('wms_client_session')
       if (raw) {
@@ -41,7 +47,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       if (!d.isActive) { router.push('/client/login'); return }
       setInfo(d); setReady(true)
     })
-  },[router])
+  },[router, path])
 
   const logout = async()=>{
     // Clear impersonation session
@@ -49,6 +55,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     // Also sign out Supabase if needed
     try { await getSupabaseBrowserClient().auth.signOut() } catch {}
     router.push('/client/login')
+  }
+
+  // On login page, render without sidebar
+  if (path === '/client/login' || path.startsWith('/client/login')) {
+    return <>{children}</>
   }
 
   if(!ready) return <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#f8fafc',color:'#94a3b8',fontSize:'14px'}}>加载中...</div>

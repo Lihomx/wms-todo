@@ -31,7 +31,8 @@ export default function ClientLoginPage() {
           isActive:     true,
           isImpersonated: true,
         }))
-        router.replace('/client/dashboard')
+        // Use window.location for hard navigation so layout re-reads sessionStorage cleanly
+        window.location.href = '/client/dashboard'
       })
       .catch(() => { setError('令牌验证失败，请重新点击进入'); setLoading(false) })
   }, [params, router])
