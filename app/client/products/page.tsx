@@ -38,7 +38,11 @@ export default function ClientProductsPage() {
       if(!cc) return
       const r = await fetch(`/api/oms-data?type=products&customerCode=${cc}`)
       const d = await r.json()
-      if(d.error){setError(d.error);setLoading(false);return}
+      if(d.error){
+        setError(d.error)
+        setLoading(false)
+        return
+      }
       setItems(d.items??[]); setLoading(false)
     }
     const cc=getCC()
@@ -95,7 +99,22 @@ export default function ClientProductsPage() {
       {/* Table */}
       <div style={{flex:1,overflow:'auto',padding:'16px 24px'}}>
         {loading ? <div style={{padding:'60px',textAlign:'center' as const,color:'#94a3b8'}}>加载中...</div>
-        : error   ? <div style={{padding:'20px',color:'#dc2626',background:'#fef2f2',borderRadius:'8px',marginBottom:'14px'}}>{error}<br/><span style={{fontSize:'12px',color:'#94a3b8'}}>请在系统设置中确认AppKey已正确绑定</span></div>
+        : error   ? (
+          <div style={{padding:'16px 20px',borderRadius:'8px',marginBottom:'14px',background:'#fef2f2',border:'1px solid #fecaca'}}>
+            <div style={{fontWeight:600,color:'#dc2626',marginBottom:'8px'}}>⚠️ {error.includes('API权限不足')?'API接口权限未开启':'加载失败'}</div>
+            <div style={{fontSize:'13px',color:'#991b1b',lineHeight:1.7}}>{error}</div>
+            {error.includes('API权限不足') && (
+              <div style={{marginTop:'12px',padding:'10px 14px',background:'#fff8f0',borderRadius:'6px',border:'1px solid #fed7aa',fontSize:'12px',color:'#92400e'}}>
+                <strong>📋 开通步骤：</strong><br/>
+                1. 登录领星OMS后台<br/>
+                2. 系统设置 → API信息<br/>
+                3. 找到对应的AppKey → 编辑<br/>
+                4. 勾选「产品管理」接口权限<br/>
+                5. 保存后刷新此页面
+              </div>
+            )}
+          </div>
+        )
         : (
           <div style={{background:'#fff',border:'1px solid #e2e8f0',borderRadius:'10px',overflow:'hidden',boxShadow:'0 1px 3px rgba(0,0,0,0.05)'}}>
             <table style={{width:'100%',borderCollapse:'collapse' as const}}>

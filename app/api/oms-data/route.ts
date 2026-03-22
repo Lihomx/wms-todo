@@ -17,7 +17,12 @@ async function omsPost(appKey:string,appSecret:string,endpoint:string,data:Recor
   })
   const json = await res.json()
   const code = json.code ?? json.status
-  if(code!==200&&code!==0&&code!=='200'&&code!=='0') throw new Error(`${json.message??json.msg??json.code}`)
+  if(code!==200&&code!==0&&code!=='200'&&code!=='0') {
+    const msg = json.message ?? json.msg ?? String(code)
+    const err = new Error(msg) as any
+    err.omsCode = String(code)
+    throw err
+  }
   return json.data ?? json
 }
 
@@ -79,6 +84,14 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ error: `未知类型: ${type}` }, { status: 400 })
   } catch(e:any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+    const isPermError = e.omsCode==='100010' || e.message?.includes('无接口权限')
+    const msg = isPermError
+      ? `API权限不足：请登录领星OMS后台 → 系统设置 → API信息，为此AppKey开启「${type==='products'?'产品管理':type==='inventory'?'综合库存':'入库单'}」接口权限`
+      : e.message
+    return NextResponse.json({
+      error: msg,
+      omsCode: e.omsCode,
+      isPermError,
+    }, { status: isPermError ? 403 : 500 })
   }
 }

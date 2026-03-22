@@ -102,7 +102,13 @@ export default function ClientInventoryPage() {
       {/* Table */}
       <div style={{flex:1,overflow:'auto',padding:'16px 24px'}}>
         {loading ? <div style={{padding:'60px',textAlign:'center' as const,color:'#94a3b8'}}>加载中...</div>
-        : error   ? <div style={{padding:'20px',color:'#dc2626',background:'#fef2f2',borderRadius:'8px'}}>{error}</div>
+        : error   ? (
+          <div style={{padding:'16px 20px',borderRadius:'8px',background:'#fef2f2',border:'1px solid #fecaca'}}>
+            <div style={{fontWeight:600,color:'#dc2626',marginBottom:'6px'}}>⚠️ {error.includes('API权限')?'API接口权限未开启':'加载失败'}</div>
+            <div style={{fontSize:'13px',color:'#991b1b',lineHeight:1.7}}>{error}</div>
+            {error.includes('API权限') && <div style={{marginTop:'10px',padding:'10px',background:'#fff8f0',borderRadius:'6px',border:'1px solid #fed7aa',fontSize:'12px',color:'#92400e'}}>请登录领星OMS后台 → 系统设置 → API信息 → 为AppKey开启「综合库存」权限</div>}
+          </div>
+        )
         : (
           <div style={card}>
             <table style={{width:'100%',borderCollapse:'collapse' as const}}>
