@@ -150,3 +150,67 @@ CREATE TABLE IF NOT EXISTS impersonate_tokens (
 );
 ALTER TABLE impersonate_tokens DISABLE ROW LEVEL SECURITY;
 -- Auto-cleanup: tokens expire after 5 minutes
+
+-- ─────────────────────────────────────────────────────────
+-- J&T Express 打单系统 tables
+-- ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS jt_config (
+  k   TEXT PRIMARY KEY,
+  v   TEXT
+);
+ALTER TABLE jt_config DISABLE ROW LEVEL SECURITY;
+
+-- Seed defaults
+INSERT INTO jt_config (k,v) VALUES
+  ('shipping_method','JT-MX-CD-N'),
+  ('api_url','http://jthq.rtb56.com/webservice/PublicService.asmx/ServiceInterfaceUTF8'),
+  ('shipper','{}')
+ON CONFLICT (k) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS jt_clients (
+  id           TEXT PRIMARY KEY,
+  username     TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  name         TEXT,
+  company      TEXT,
+  email        TEXT,
+  phone        TEXT,
+  client_code  TEXT
+);
+ALTER TABLE jt_clients DISABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS jt_orders (
+  id           TEXT PRIMARY KEY,
+  reference_no TEXT UNIQUE NOT NULL,
+  data         JSONB,
+  status       TEXT DEFAULT 'reviewing',
+  tracking_no  TEXT DEFAULT '',
+  jt_order_id  TEXT DEFAULT '',
+  label_url    TEXT DEFAULT '',
+  sync_error   TEXT DEFAULT '',
+  client_code  TEXT DEFAULT '',
+  client_name  TEXT DEFAULT '',
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_jt_orders_client ON jt_orders(client_code);
+CREATE INDEX IF NOT EXISTS idx_jt_orders_status ON jt_orders(status);
+ALTER TABLE jt_orders DISABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS jt_addresses (
+  id          TEXT PRIMARY KEY,
+  client_code TEXT NOT NULL,
+  alias       TEXT NOT NULL,
+  name        TEXT, company TEXT, phone TEXT,
+  postcode    TEXT, colonia TEXT, city TEXT, state TEXT,
+  street      TEXT, interior TEXT, reference TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_jt_addresses_client ON jt_addresses(client_code);
+ALTER TABLE jt_addresses DISABLE ROW LEVEL SECURITY;
+
+-- J&T admin credentials (password: admin123 - change after first login via settings)
+-- Password hash is HMAC-SHA256: hash.salt format
+INSERT INTO jt_config (k,v) VALUES
+  ('admin_username', 'admin'),
+  ('admin_password', 'admin123')  -- plain text initially, will be hashed on first use
+ON CONFLICT (k) DO NOTHING;
