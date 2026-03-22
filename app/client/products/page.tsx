@@ -7,42 +7,28 @@ function getCC() {
   return ''
 }
 
-interface Product {
-  sku:string; productName:string; productAliasName:string; approveStatus:number
-  mainCode:string; length:number; width:number; height:number; weight:number
-  wmsLength:number; wmsWidth:number; wmsHeight:number; wmsWeight:number
-  declareNameCn:string; declarePrice:number; currencyCode:string
-  dangerousCargo:number; countryOfOriginName:string
-}
-
-const STATUS_MAP: Record<number,{label:string;color:string;bg:string}> = {
-  0:{label:'草稿',    color:'#64748b',bg:'#f1f5f9'},
-  1:{label:'审核中',  color:'#d97706',bg:'#fffbeb'},
-  2:{label:'已审核',  color:'#16a34a',bg:'#dcfce7'},
-  3:{label:'已驳回',  color:'#dc2626',bg:'#fef2f2'},
-  4:{label:'废弃',    color:'#94a3b8',bg:'#f8fafc'},
-}
-const DANGER_MAP: Record<number,string> = {
-  1:'普货',2:'内置电池',3:'配套电池',4:'纯电池',5:'液体',6:'膏体',7:'粉末',8:'带磁'
+interface InvItem {
+  sku:string; productName:string; whCode:string; stockType:string
+  totalAmount:number
+  productStockDtl?:{availableAmount:number;lockAmount:number;transportAmount:number}
+  boxStockDtl?:{availableAmount:number;lockAmount:number}
+  fbaReturnStockDtl?:{availableAmount:number;lockAmount:number}
 }
 
 export default function ClientProductsPage() {
-  const [items,     setItems]     = useState<Product[]>([])
-  const [loading,   setLoading]   = useState(true)
-  const [error,     setError]     = useState('')
-  const [search,    setSearch]    = useState('')
-  const [statusTab, setStatusTab] = useState<number|'all'>('all')
+  const [items,   setItems]   = useState<InvItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error,   setError]   = useState('')
+  const [search,  setSearch]  = useState('')
+  const [tab,     setTab]     = useState<'all'|'product'|'box'|'return'>('all')
+  const [hideZero,setHideZero]= useState(false)
 
   useEffect(()=>{
     const load = async(cc:string)=>{
       if(!cc) return
-      const r = await fetch(`/api/oms-data?type=products&customerCode=${cc}`)
+      const r = await fetch(`/api/oms-data?type=inventory&customerCode=${cc}`)
       const d = await r.json()
-      if(d.error){
-        setError(d.error)
-        setLoading(false)
-        return
-      }
+      if(d.error){ setError(d.error); setLoading(false); return }
       setItems(d.items??[]); setLoading(false)
     }
     const cc=getCC()
@@ -50,46 +36,77 @@ export default function ClientProductsPage() {
     fetch('/api/auth-info').then(r=>r.json()).then(d=>load(d.customerCode||''))
   },[])
 
-  const tabs = [
-    {key:'all',label:'全部'},
-    {key:0,label:'草稿'},
-    {key:1,label:'审核中'},
-    {key:2,label:'已审核'},
-    {key:3,label:'已驳回'},
-    {key:4,label:'废弃'},
-  ]
+  // Deduplicate by SKU (inventory may have same SKU in multiple warehouses)
+  const skuMap = new Map<string, InvItem>()
+  for(const it of items) {
+    const existing = skuMap.get(it.sku)
+    if(!existing) { skuMap.set(it.sku, it) }
+    else {
+      // Merge stock numbers
+      skuMap.set(it.sku, {
+        ...existing,
+        totalAmount: (existing.totalAmount||0)+(it.totalAmount||0),
+        productStockDtl: existing.productStockDtl ? {
+          availableAmount: (existing.productStockDtl.availableAmount||0)+(it.productStockDtl?.availableAmount||0),
+          lockAmount:      (existing.productStockDtl.lockAmount||0)+(it.productStockDtl?.lockAmount||0),
+          transportAmount: (existing.productStockDtl.transportAmount||0)+(it.productStockDtl?.transportAmount||0),
+        } : it.productStockDtl,
+      })
+    }
+  }
+  const allSkus = [...skuMap.values()]
 
-  const filtered = items.filter(it=>{
-    if(statusTab!=='all' && it.approveStatus!==statusTab) return false
-    if(search && !(it.sku+it.productName+it.mainCode).toLowerCase().includes(search.toLowerCase())) return false
+  const filtered = allSkus.filter(it=>{
+    if(hideZero && it.totalAmount===0) return false
+    if(tab==='product' && !(it.productStockDtl?.availableAmount || it.productStockDtl?.lockAmount)) return false
+    if(tab==='box'     && !(it.boxStockDtl?.availableAmount     || it.boxStockDtl?.lockAmount))     return false
+    if(tab==='return'  && !(it.fbaReturnStockDtl?.availableAmount || it.fbaReturnStockDtl?.lockAmount)) return false
+    if(search && !(it.sku+it.productName).toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
 
-  const th:React.CSSProperties={padding:'10px 14px',fontSize:'11px',fontWeight:700,color:'#475569',textAlign:'left' as const,borderBottom:'2px solid #e2e8f0',whiteSpace:'nowrap' as const,background:'#f8fafc',position:'sticky' as const,top:0}
-  const td:React.CSSProperties={padding:'10px 14px',fontSize:'12px',color:'#0f172a',borderBottom:'1px solid #f1f5f9',whiteSpace:'nowrap' as const,verticalAlign:'middle' as const}
+  // Count per tab
+  const countProduct = allSkus.filter(i=>(i.productStockDtl?.availableAmount||0)+(i.productStockDtl?.lockAmount||0)>0).length
+  const countBox     = allSkus.filter(i=>(i.boxStockDtl?.availableAmount||0)+(i.boxStockDtl?.lockAmount||0)>0).length
+  const countReturn  = allSkus.filter(i=>(i.fbaReturnStockDtl?.availableAmount||0)+(i.fbaReturnStockDtl?.lockAmount||0)>0).length
+
+  const th:React.CSSProperties={padding:'10px 14px',fontSize:'11px',fontWeight:700,color:'#475569',textAlign:'left' as const,borderBottom:'2px solid #e2e8f0',whiteSpace:'nowrap' as const,background:'#f8fafc',position:'sticky' as const,top:0,zIndex:1}
+  const td:React.CSSProperties={padding:'10px 14px',fontSize:'12px',color:'#0f172a',borderBottom:'1px solid #f1f5f9',verticalAlign:'middle' as const}
+
+  const tabs = [
+    {key:'all',    label:'全部',    count:allSkus.length},
+    {key:'product',label:'产品库存', count:countProduct, desc:'一件代发'},
+    {key:'box',    label:'箱库存',   count:countBox,     desc:'备货中转'},
+    {key:'return', label:'退货库存', count:countReturn,  desc:'FBA退货'},
+  ]
 
   return (
     <div style={{flex:1,display:'flex',flexDirection:'column' as const,overflow:'hidden',background:'#f8fafc'}}>
       {/* Header */}
-      <div style={{padding:'16px 24px',background:'#fff',borderBottom:'1px solid #e2e8f0',flexShrink:0}}>
+      <div style={{padding:'14px 24px',background:'#fff',borderBottom:'1px solid #e2e8f0',flexShrink:0}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'10px'}}>
           <div>
             <h1 style={{fontSize:'18px',fontWeight:700,color:'#0f172a'}}>产品管理</h1>
-            <p style={{fontSize:'12px',color:'#64748b',marginTop:'2px'}}>共 {loading?'…':items.length} 个SKU</p>
+            <p style={{fontSize:'12px',color:'#64748b',marginTop:'2px'}}>共 {loading?'…':allSkus.length} 个SKU · 来源：综合库存</p>
           </div>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="SKU / 产品名称搜索..."
-            style={{padding:'7px 12px',borderRadius:'7px',border:'1px solid #e2e8f0',fontSize:'13px',outline:'none',width:'220px'}}/>
+          <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
+            <label style={{display:'flex',alignItems:'center',gap:'5px',fontSize:'12px',color:'#64748b',cursor:'pointer'}}>
+              <input type="checkbox" checked={hideZero} onChange={e=>setHideZero(e.target.checked)} style={{accentColor:'#2563eb'}}/>隐藏零库存
+            </label>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="SKU / 产品名称..."
+              style={{padding:'7px 12px',borderRadius:'7px',border:'1px solid #e2e8f0',fontSize:'13px',outline:'none',width:'200px'}}/>
+          </div>
         </div>
-        {/* Status tabs */}
-        <div style={{display:'flex',gap:'0',borderBottom:'1px solid #e2e8f0'}}>
+        {/* Tabs */}
+        <div style={{display:'flex',gap:'0'}}>
           {tabs.map(t=>{
-            const count = t.key==='all' ? items.length : items.filter(i=>i.approveStatus===t.key).length
-            const active = statusTab===t.key
+            const active = tab===t.key
             return (
-              <button key={String(t.key)} onClick={()=>setStatusTab(t.key as any)}
-                style={{padding:'8px 16px',border:'none',borderBottom:`2px solid ${active?'#2563eb':'transparent'}`,background:'none',color:active?'#2563eb':'#64748b',fontSize:'13px',fontWeight:active?600:400,cursor:'pointer'}}>
+              <button key={t.key} onClick={()=>setTab(t.key as any)}
+                style={{padding:'8px 16px',border:'none',borderBottom:`2px solid ${active?'#2563eb':'transparent'}`,background:'none',color:active?'#2563eb':'#64748b',fontSize:'13px',fontWeight:active?600:400,cursor:'pointer',display:'flex',alignItems:'center',gap:'6px'}}>
                 {t.label}
-                <span style={{marginLeft:'5px',padding:'1px 6px',borderRadius:'10px',fontSize:'10px',background:active?'#eff6ff':'#f1f5f9',color:active?'#2563eb':'#94a3b8'}}>{count}</span>
+                <span style={{padding:'1px 6px',borderRadius:'10px',fontSize:'10px',background:active?'#eff6ff':'#f1f5f9',color:active?'#2563eb':'#94a3b8',fontWeight:600}}>{t.count}</span>
+                {(t as any).desc&&<span style={{fontSize:'10px',color:'#94a3b8'}}>({(t as any).desc})</span>}
               </button>
             )
           })}
@@ -98,24 +115,12 @@ export default function ClientProductsPage() {
 
       {/* Table */}
       <div style={{flex:1,overflow:'auto',padding:'16px 24px'}}>
-        {loading ? <div style={{padding:'60px',textAlign:'center' as const,color:'#94a3b8'}}>加载中...</div>
-        : error   ? (
-          <div style={{padding:'16px 20px',borderRadius:'8px',marginBottom:'14px',background:'#fef2f2',border:'1px solid #fecaca'}}>
-            <div style={{fontWeight:600,color:'#dc2626',marginBottom:'8px'}}>⚠️ {error.includes('API权限不足')?'API接口权限未开启':'加载失败'}</div>
-            <div style={{fontSize:'13px',color:'#991b1b',lineHeight:1.7}}>{error}</div>
-            {error.includes('API权限不足') && (
-              <div style={{marginTop:'12px',padding:'10px 14px',background:'#fff8f0',borderRadius:'6px',border:'1px solid #fed7aa',fontSize:'12px',color:'#92400e'}}>
-                <strong>📋 开通步骤：</strong><br/>
-                1. 登录领星OMS后台<br/>
-                2. 系统设置 → API信息<br/>
-                3. 找到对应的AppKey → 编辑<br/>
-                4. 勾选「产品管理」接口权限<br/>
-                5. 保存后刷新此页面
-              </div>
-            )}
+        {loading ? <div style={{padding:'60px',textAlign:'center' as const,color:'#94a3b8',fontSize:'14px'}}>加载中...</div>
+        : error ? (
+          <div style={{padding:'16px',borderRadius:'8px',background:'#fef2f2',border:'1px solid #fecaca',color:'#dc2626',fontSize:'13px'}}>
+            ⚠️ {error}
           </div>
-        )
-        : (
+        ) : (
           <div style={{background:'#fff',border:'1px solid #e2e8f0',borderRadius:'10px',overflow:'hidden',boxShadow:'0 1px 3px rgba(0,0,0,0.05)'}}>
             <table style={{width:'100%',borderCollapse:'collapse' as const}}>
               <thead>
@@ -123,45 +128,44 @@ export default function ClientProductsPage() {
                   <th style={th}>图片</th>
                   <th style={th}>SKU</th>
                   <th style={th}>产品名称</th>
-                  <th style={th}>产品别名</th>
-                  <th style={th}>WMS尺寸</th>
-                  <th style={th}>WMS重量</th>
-                  <th style={th}>OMS尺寸</th>
-                  <th style={th}>OMS重量</th>
-                  <th style={th}>申报中文名</th>
-                  <th style={th}>申报价格</th>
-                  <th style={th}>危险品</th>
-                  <th style={th}>状态</th>
+                  <th style={th}>库存属性</th>
+                  <th style={th}>仓库</th>
+                  <th style={{...th,color:'#16a34a'}}>总库存</th>
+                  <th style={{...th,color:'#16a34a'}}>产品可用</th>
+                  <th style={{...th,color:'#f97316'}}>产品锁定</th>
+                  <th style={{...th,color:'#94a3b8'}}>在途</th>
+                  <th style={{...th,color:'#3b82f6'}}>箱可用</th>
+                  <th style={{...th,color:'#7c3aed'}}>退货可用</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length===0
-                  ? <tr><td colSpan={12} style={{...td,textAlign:'center' as const,color:'#94a3b8',padding:'40px'}}>暂无产品数据</td></tr>
-                  : filtered.map((it,i)=>{
-                    const st = STATUS_MAP[it.approveStatus] ?? {label:'未知',color:'#94a3b8',bg:'#f8fafc'}
-                    return (
-                      <tr key={it.sku} style={{background:i%2===0?'#fff':'#fafbfc'}}>
-                        <td style={td}>
-                          <div style={{width:'40px',height:'40px',borderRadius:'6px',background:'#f1f5f9',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'20px'}}>📦</div>
-                        </td>
-                        <td style={{...td,fontWeight:600,color:'#2563eb',fontFamily:'monospace'}}>{it.sku}</td>
-                        <td style={{...td,maxWidth:'180px',overflow:'hidden',textOverflow:'ellipsis'}}>{it.productName||'-'}</td>
-                        <td style={{...td,color:'#64748b',maxWidth:'120px',overflow:'hidden',textOverflow:'ellipsis'}}>{it.productAliasName||'-'}</td>
-                        <td style={{...td,color:'#64748b',fontSize:'11px'}}>
-                          {it.wmsLength&&it.wmsWidth&&it.wmsHeight ? `${it.wmsLength}×${it.wmsWidth}×${it.wmsHeight} cm` : '-'}
-                        </td>
-                        <td style={{...td,color:'#64748b',fontSize:'11px'}}>{it.wmsWeight ? `${it.wmsWeight} kg` : '-'}</td>
-                        <td style={{...td,color:'#64748b',fontSize:'11px'}}>
-                          {it.length&&it.width&&it.height ? `${it.length}×${it.width}×${it.height} cm` : '-'}
-                        </td>
-                        <td style={{...td,color:'#64748b',fontSize:'11px'}}>{it.weight ? `${it.weight} kg` : '-'}</td>
-                        <td style={td}>{it.declareNameCn||'-'}</td>
-                        <td style={td}>{it.declarePrice ? `${it.declarePrice} ${it.currencyCode||'USD'}` : '-'}</td>
-                        <td style={td}><span style={{fontSize:'11px',color:'#64748b'}}>{DANGER_MAP[it.dangerousCargo]||'-'}</span></td>
-                        <td style={td}><span style={{padding:'2px 8px',borderRadius:'20px',fontSize:'11px',fontWeight:600,background:st.bg,color:st.color}}>{st.label}</span></td>
-                      </tr>
-                    )
-                  })}
+                  ? <tr><td colSpan={11} style={{...td,textAlign:'center' as const,color:'#94a3b8',padding:'40px'}}>
+                      {search ? `未找到匹配"${search}"的产品` : '暂无库存数据'}
+                    </td></tr>
+                  : filtered.map((it,i)=>(
+                  <tr key={it.sku} style={{background:i%2===0?'#fff':'#fafbfc'}}>
+                    <td style={td}>
+                      <div style={{width:'36px',height:'36px',borderRadius:'6px',background:'#f1f5f9',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px'}}>📦</div>
+                    </td>
+                    <td style={{...td,fontWeight:700,color:'#2563eb',fontFamily:'monospace',fontSize:'12px'}}>{it.sku}</td>
+                    <td style={{...td,maxWidth:'200px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}} title={it.productName}>{it.productName||'-'}</td>
+                    <td style={td}>
+                      <span style={{padding:'2px 8px',borderRadius:'20px',fontSize:'11px',fontWeight:600,
+                        background:it.stockType==='0'||it.stockType==='正品'?'#dcfce7':'#fef2f2',
+                        color:it.stockType==='0'||it.stockType==='正品'?'#16a34a':'#dc2626'}}>
+                        {it.stockType==='0'?'正品':it.stockType==='1'?'次品':it.stockType||'正品'}
+                      </span>
+                    </td>
+                    <td style={{...td,fontSize:'11px',color:'#64748b'}}>{it.whCode}</td>
+                    <td style={{...td,fontWeight:700}}>{it.totalAmount??0}</td>
+                    <td style={{...td,color:'#16a34a',fontWeight:600}}>{it.productStockDtl?.availableAmount??0}</td>
+                    <td style={{...td,color:(it.productStockDtl?.lockAmount||0)>0?'#f97316':'#94a3b8'}}>{it.productStockDtl?.lockAmount??0}</td>
+                    <td style={{...td,color:'#94a3b8'}}>{it.productStockDtl?.transportAmount??0}</td>
+                    <td style={{...td,color:'#3b82f6'}}>{it.boxStockDtl?.availableAmount??0}</td>
+                    <td style={{...td,color:'#7c3aed'}}>{it.fbaReturnStockDtl?.availableAmount??0}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

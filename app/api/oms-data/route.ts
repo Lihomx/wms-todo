@@ -84,14 +84,13 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ error: `未知类型: ${type}` }, { status: 400 })
   } catch(e:any) {
-    const isPermError = e.omsCode==='100010' || e.message?.includes('无接口权限')
-    const msg = isPermError
-      ? `API权限不足：请登录领星OMS后台 → 系统设置 → API信息，为此AppKey开启「${type==='products'?'产品管理':type==='inventory'?'综合库存':'入库单'}」接口权限`
-      : e.message
+    const isPermError = e.omsCode==='100010' || String(e.message).includes('无接口权限') || String(e.message).includes('11008')
     return NextResponse.json({
-      error: msg,
+      error: isPermError
+        ? `此AppKey暂无「${type}」接口权限 (${e.message})`
+        : e.message,
       omsCode: e.omsCode,
       isPermError,
-    }, { status: isPermError ? 403 : 500 })
+    }, { status: 500 })
   }
 }
