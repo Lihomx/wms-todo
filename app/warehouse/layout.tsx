@@ -11,6 +11,10 @@ const NAV = [
   ]},
   { group: '打单系统', items: [
     { href:'/warehouse/daily-dispatch', icon:'📋', label:'每日代发详情' },
+    { href:'/jt-admin/orders',          icon:'🚚', label:'极兔打单管理' },
+    { href:'/jt-admin/settings',        icon:'⚙',  label:'极兔系统设置' },
+
+    { href:'/warehouse/daily-dispatch', icon:'📋', label:'每日代发详情' },
     { href:'/warehouse/shipping', icon:'🚚', label:'发货记录' },
   ]},
   { group: '管理', items: [
