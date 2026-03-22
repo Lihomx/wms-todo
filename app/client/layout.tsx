@@ -7,11 +7,14 @@ import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
 interface AuthInfo { role:string; customerCode:string; customerName:string; displayName:string; email:string; isActive:boolean; isImpersonated?:boolean }
 
 const NAV = [
-  { href:'/client/dashboard', icon:'⊞', label:'总览' },
-  { href:'/client/shipping',  icon:'📦', label:'创建出库单' },
-  { href:'/client/todos',     icon:'✓',  label:'待办事项' },
-  { href:'/client/data',      icon:'◈',  label:'OMS数据' },
-  { href:'/client/settings',  icon:'⚙',  label:'系统设置' },
+  { href:'/client/dashboard',  icon:'⊞',  label:'总览',     group:'' },
+  { href:'/client/warehouse',  icon:'🏭',  label:'仓库服务', group:'仓储' },
+  { href:'/client/inventory',  icon:'📊',  label:'产品库存', group:'仓储' },
+  { href:'/client/products',   icon:'🗂',  label:'产品管理', group:'仓储' },
+  { href:'/client/shipping',   icon:'📦',  label:'创建出库单',group:'出库' },
+  { href:'/client/todos',      icon:'✓',   label:'待办事项', group:'工作台' },
+  { href:'/client/data',       icon:'◈',   label:'OMS数据',  group:'工作台' },
+  { href:'/client/settings',   icon:'⚙',   label:'系统设置', group:'' },
 ]
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -85,17 +88,29 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         </div>
 
         {/* Nav */}
-        <nav style={{flex:1,padding:'8px'}}>
-          {NAV.map(item=>{
-            const active = path===item.href||(item.href.length>10&&path.startsWith(item.href))
-            return (
-              <Link key={item.href} href={item.href} style={{display:'flex',alignItems:'center',gap:'8px',padding:'8px 10px',borderRadius:'6px',marginBottom:'1px',textDecoration:'none',background:active?'#eff6ff':'transparent',color:active?'#2563eb':'#475569',fontSize:'13px',fontWeight:active?600:400}}>
-                <span style={{fontSize:'13px',width:'14px',textAlign:'center' as const}}>{item.icon}</span>
-                <span>{item.label}</span>
-                {active&&<span style={{marginLeft:'auto',width:'4px',height:'4px',borderRadius:'50%',background:'#2563eb'}}/>}
-              </Link>
-            )
-          })}
+        <nav style={{flex:1,padding:'8px',overflowY:'auto' as const}}>
+          {(()=>{
+            const groups = ['','仓储','出库','工作台']
+            return groups.map(g=>{
+              const gItems = NAV.filter(n=>n.group===g)
+              if(!gItems.length) return null
+              return (
+                <div key={g} style={{marginBottom:'4px'}}>
+                  {g&&<div style={{fontSize:'10px',fontWeight:600,color:'#94a3b8',padding:'6px 10px 2px',textTransform:'uppercase' as const,letterSpacing:'0.5px'}}>{g}</div>}
+                  {gItems.map(item=>{
+                    const active = path===item.href||(item.href.length>10&&path.startsWith(item.href))
+                    return (
+                      <Link key={item.href} href={item.href} style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 10px',borderRadius:'6px',marginBottom:'1px',textDecoration:'none',background:active?'#eff6ff':'transparent',color:active?'#2563eb':'#475569',fontSize:'13px',fontWeight:active?600:400}}>
+                        <span style={{fontSize:'13px',width:'14px',textAlign:'center' as const}}>{item.icon}</span>
+                        <span>{item.label}</span>
+                        {active&&<span style={{marginLeft:'auto',width:'4px',height:'4px',borderRadius:'50%',background:'#2563eb'}}/>}
+                      </Link>
+                    )
+                  })}
+                </div>
+              )
+            })
+          })()}
         </nav>
 
         {/* User */}
