@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdminClient } from '@/lib/supabase-server'
-import { createHmac, randomBytes, timingSafeEqual } from 'crypto'
-import { SignJWT, jwtVerify } from 'jose'
+import { createHmac, randomBytes, timingSafeEqual, createHash } from 'crypto'
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JT_JWT_SECRET || "jitu_secret_change_in_prod_2024")
+const JWT_SECRET = process.env.JT_JWT_SECRET || 'jitu_secret_change_in_prod_2024'
 const JT_API_BASE = 'http://jthq.rtb56.com/webservice/PublicService.asmx/ServiceInterfaceUTF8'
 
 // ─── helpers ─────────────────────────────────────────────
@@ -12,14 +11,20 @@ function ok(data: any = {}) { return NextResponse.json({ success: 1, data }) }
 function err(msg: string, status = 400) { return NextResponse.json({ success: 0, msg }, { status }) }
 
 async function signToken(payload: object): Promise<string> {
-  return new SignJWT(payload as any)
-    .setProtectedHeader({ alg: "HS256" })
-    .setExpirationTime("8h")
-    .sign(JWT_SECRET)
+  const header = Buffer.from(JSON.stringify({ alg:'HS256', typ:'JWT' })).toString('base64url')
+  const body   = Buffer.from(JSON.stringify({ ...payload as any, exp: Math.floor(Date.now()/1000) + 8*3600 })).toString('base64url')
+  const sig    = createHmac('sha256', JWT_SECRET).update(`${header}.${body}`).digest('base64url')
+  return `${header}.${body}.${sig}`
 }
 async function verifyToken(token: string): Promise<any> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET)
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const [header, body, sig] = parts
+    const expected = createHmac('sha256', JWT_SECRET).update(`${header}.${body}`).digest('base64url')
+    try { if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null } catch { return null }
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString())
+    if (payload.exp && payload.exp < Math.floor(Date.now()/1000)) return null
     return payload
   } catch { return null }
 }
