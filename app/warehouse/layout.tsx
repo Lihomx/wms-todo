@@ -11,8 +11,8 @@ const NAV = [
   ]},
   { group: '打单系统', items: [
     { href:'/warehouse/daily-dispatch', icon:'📋', label:'每日代发详情' },
-    { href:'/jt-admin/orders',          icon:'🚚', label:'极兔打单管理' },
-    { href:'/jt-admin/settings',        icon:'⚙',  label:'极兔系统设置' },
+    { href:'/warehouse/jt-orders',      icon:'🚚', label:'极兔订单管理' },
+    { href:'/warehouse/jt-settings',    icon:'⚙',  label:'极兔系统设置' },
 
     { href:'/warehouse/daily-dispatch', icon:'📋', label:'每日代发详情' },
     { href:'/warehouse/shipping', icon:'🚚', label:'发货记录' },
@@ -37,6 +37,7 @@ export default function WarehouseLayout({ children }: { children: React.ReactNod
   const [authChecked, setAuthChecked] = useState(false)
 
   useEffect(() => {
+    if(typeof window!=='undefined') sessionStorage.setItem('wms_warehouse_role','admin')
     getSupabaseBrowserClient().auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         router.push('/auth/login')
