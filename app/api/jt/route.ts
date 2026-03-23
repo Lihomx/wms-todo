@@ -45,7 +45,7 @@ function hashPassword(password: string) {
 }
 function verifyPassword(password: string, stored: string) {
   if (!stored) return false
-  if (!stored.includes('.')) return password === stored  // plain text fallback
+  if (!stored.includes('.')) return password === stored
   const [hash, salt] = stored.split('.')
   try {
     const attempt = createHmac('sha256', salt).update(password).digest('hex')
@@ -54,10 +54,6 @@ function verifyPassword(password: string, stored: string) {
 }
 
 // ─── main handler ─────────────────────────────────────────
-// Auth: uses existing WMS sessions - NO separate JT login needed
-// Headers sent by client pages:
-//   x-wms-role: 'admin' (warehouse) or 'client' (OMS client)
-//   x-customer-code: customer code for client role
 export async function POST(req: NextRequest) {
   const action       = new URL(req.url).searchParams.get('action') || ''
   const body         = await req.json().catch(() => ({}))
@@ -169,6 +165,7 @@ export async function POST(req: NextRequest) {
         shipper_countrycode: 'MX',
         shipper_province:    (shipper.province ||'').slice(0,100),
         shipper_city:        (shipper.city     ||'').slice(0,100),
+        shipper_district:    (shipper.colonia  ||'').slice(0,200),
         shipper_street:      (shipper.street   ||'').slice(0,300),
         shipper_postcode:    (shipper.postcode ||'').replace(/\D/g,''),
         shipper_telephone:   (shipper.telephone||'').replace(/[^0-9+\-()\s]/g,''),
@@ -228,23 +225,27 @@ export async function POST(req: NextRequest) {
     const [appToken, appKey, apiUrl, shippingMethod, shipperJson] = await Promise.all([
       cfgGet('app_token'), cfgGet('app_key'), cfgGet('api_url'), cfgGet('shipping_method'), cfgGet('shipper')
     ])
-    return ok({ appToken, appKey: appKey?'••••••':'', apiUrl, shippingMethod, shipper: JSON.parse(shipperJson||'{}') })
+    return ok({
+      appToken,
+      // Return '••••••' if key is saved, empty string if not set yet
+      appKey: appKey ? '••••••' : '',
+      apiUrl,
+      shippingMethod,
+      shipper: JSON.parse(shipperJson||'{}')
+    })
   }
   if (action === 'save_config') {
     if (body.appToken !== undefined)                   await cfgSet('app_token',        body.appToken)
     if (body.appKey && body.appKey !== '••••••')       await cfgSet('app_key',          body.appKey)
-    if (body.apiUrl)                                   await cfgSet('api_url',          body.apiUrl)
-    if (body.shippingMethod)                           await cfgSet('shipping_method',  body.shippingMethod)
+    if (body.apiUrl !== undefined)                     await cfgSet('api_url',          body.apiUrl)
+    if (body.shippingMethod !== undefined)             await cfgSet('shipping_method',  body.shippingMethod)
     if (body.shipper)                                  await cfgSet('shipper',          JSON.stringify(body.shipper))
     return ok()
   }
   if (action === 'test_connection') {
-    // Save first so cfgGet picks them up
     if (body.appToken) await cfgSet('app_token', body.appToken)
     if (body.appKey && body.appKey !== '••••••') await cfgSet('app_key', body.appKey)
     if (body.apiUrl) await cfgSet('api_url', body.apiUrl)
-    // Call directly with provided values (don't rely on DB read delay)
-    // If appKey is masked, it's already in DB - read from there
     const token = body.appToken?.trim() || await cfgGet('app_token')
     const key   = (body.appKey && body.appKey !== '••••••') ? body.appKey.trim() : await cfgGet('app_key')
     if (!token || !key) return ok({ success: 0, cnmessage: 'AppToken 和 AppKey 均必填' })
