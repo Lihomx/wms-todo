@@ -1,8 +1,22 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 
-import { jtApi } from '@/lib/jt-api'
-const api = jtApi
+
+function getWmsHeaders(): Record<string, string> {
+  const h: Record<string, string> = { "Content-Type": "application/json" }
+  if (typeof window === "undefined") return h
+  if (sessionStorage.getItem("wms_warehouse_role") === "admin") { h["x-wms-role"] = "admin"; return h }
+  try {
+    const s = sessionStorage.getItem("wms_client_session")
+    if (s) { const p = JSON.parse(s); if (p?.customerCode) { h["x-wms-role"] = "client"; h["x-customer-code"] = p.customerCode; return h } }
+  } catch {}
+  return h
+}
+function api(action: string, body: object = {}): Promise<any> {
+  return fetch(`/api/jt?action=${action}`, { method: "POST", headers: getWmsHeaders(), body: JSON.stringify(body) })
+    .then(r => r.json()).then(d => { if (!d.success) throw new Error(d.msg || "请求失败"); return d.data })
+}
+
 
 const inp:React.CSSProperties={width:'100%',padding:'10px 12px',border:'1.5px solid #e0dbd2',borderRadius:'6px',fontSize:'14px',outline:'none',fontFamily:'inherit',boxSizing:'border-box' as const,background:'#fff',color:'#1a1714'}
 const sel:React.CSSProperties={...inp,cursor:'pointer',backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b6560' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E\")",backgroundRepeat:'no-repeat',backgroundPosition:'right 12px center',paddingRight:'32px',appearance:'none' as const}

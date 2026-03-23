@@ -1,8 +1,22 @@
 'use client'
 import { useState, useEffect } from 'react'
 
-import { jtApi } from '@/lib/jt-api'
-const api = jtApi
+
+function getWmsHeaders(): Record<string, string> {
+  const h: Record<string, string> = { "Content-Type": "application/json" }
+  if (typeof window === "undefined") return h
+  if (sessionStorage.getItem("wms_warehouse_role") === "admin") { h["x-wms-role"] = "admin"; return h }
+  try {
+    const s = sessionStorage.getItem("wms_client_session")
+    if (s) { const p = JSON.parse(s); if (p?.customerCode) { h["x-wms-role"] = "client"; h["x-customer-code"] = p.customerCode; return h } }
+  } catch {}
+  return h
+}
+function api(action: string, body: object = {}): Promise<any> {
+  return fetch(`/api/jt?action=${action}`, { method: "POST", headers: getWmsHeaders(), body: JSON.stringify(body) })
+    .then(r => r.json()).then(d => { if (!d.success) throw new Error(d.msg || "请求失败"); return d.data })
+}
+
 
 const STATUS_STYLE:Record<string,{label:string;bg:string;color:string}> = {
   reviewing: {label:'审核中',         bg:'#fff7e0',color:'#b45309'},

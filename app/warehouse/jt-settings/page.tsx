@@ -1,8 +1,22 @@
 'use client'
 import { useState, useEffect } from 'react'
 
-import { jtApi } from '@/lib/jt-api'
-const api = jtApi
+
+function getWmsHeaders(): Record<string, string> {
+  const h: Record<string, string> = { "Content-Type": "application/json" }
+  if (typeof window === "undefined") return h
+  if (sessionStorage.getItem("wms_warehouse_role") === "admin") { h["x-wms-role"] = "admin"; return h }
+  try {
+    const s = sessionStorage.getItem("wms_client_session")
+    if (s) { const p = JSON.parse(s); if (p?.customerCode) { h["x-wms-role"] = "client"; h["x-customer-code"] = p.customerCode; return h } }
+  } catch {}
+  return h
+}
+function api(action: string, body: object = {}): Promise<any> {
+  return fetch(`/api/jt?action=${action}`, { method: "POST", headers: getWmsHeaders(), body: JSON.stringify(body) })
+    .then(r => r.json()).then(d => { if (!d.success) throw new Error(d.msg || "请求失败"); return d.data })
+}
+
 
 const inp:React.CSSProperties={width:'100%',padding:'10px 12px',border:'1.5px solid #dde3f5',borderRadius:'6px',fontSize:'14px',outline:'none',fontFamily:'inherit',background:'#fff',boxSizing:'border-box' as const}
 const lbl=(t:string)=><label style={{display:'block',fontSize:'12px',fontWeight:600,color:'#6b6560',textTransform:'uppercase' as const,letterSpacing:'0.5px',marginBottom:'6px'}}>{t}</label>
