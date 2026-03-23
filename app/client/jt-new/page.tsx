@@ -3,12 +3,11 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 
 
 function getWmsHeaders(): Record<string, string> {
-  const h: Record<string, string> = { "Content-Type": "application/json" }
+  const h: Record<string, string> = { "Content-Type": "application/json", "x-wms-role": "client" }
   if (typeof window === "undefined") return h
-  if (sessionStorage.getItem("wms_warehouse_role") === "admin") { h["x-wms-role"] = "admin"; return h }
   try {
     const s = sessionStorage.getItem("wms_client_session")
-    if (s) { const p = JSON.parse(s); if (p?.customerCode) { h["x-wms-role"] = "client"; h["x-customer-code"] = p.customerCode; return h } }
+    if (s) { const p = JSON.parse(s); if (p?.customerCode) h["x-customer-code"] = p.customerCode }
   } catch {}
   return h
 }

@@ -127,7 +127,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         </div>
       </div>
 
-      <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>{children}</div>
+      <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'auto'}}>{children}</div>
     </div>
   )
 }

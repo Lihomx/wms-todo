@@ -239,9 +239,33 @@ export async function POST(req: NextRequest) {
     return ok()
   }
   if (action === 'test_connection') {
+    // Save first so cfgGet picks them up
     if (body.appToken) await cfgSet('app_token', body.appToken)
     if (body.appKey && body.appKey !== '••••••') await cfgSet('app_key', body.appKey)
-    return ok(await jtCall('getshippingmethod', {}))
+    if (body.apiUrl) await cfgSet('api_url', body.apiUrl)
+    // Call directly with provided values (don't rely on DB read delay)
+    // If appKey is masked, it's already in DB - read from there
+    const token = body.appToken?.trim() || await cfgGet('app_token')
+    const key   = (body.appKey && body.appKey !== '••••••') ? body.appKey.trim() : await cfgGet('app_key')
+    if (!token || !key) return ok({ success: 0, cnmessage: 'AppToken 和 AppKey 均必填' })
+    const apiUrl = body.apiUrl || await cfgGet('api_url') || 'http://jthq.rtb56.com/webservice/PublicService.asmx/ServiceInterfaceUTF8'
+    const postBody = new URLSearchParams({
+      appToken: token, appKey: key,
+      serviceMethod: 'getshippingmethod',
+      paramsJson: '{}',
+    })
+    try {
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'JituWMS/2.0' },
+        body: postBody.toString(),
+        signal: AbortSignal.timeout(30000),
+      })
+      const result = await res.json()
+      return ok(result)
+    } catch (e: any) {
+      return ok({ success: 0, cnmessage: '无法连接J&T服务器: ' + e.message })
+    }
   }
 
   return err('无效请求', 400)
